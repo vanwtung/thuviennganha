@@ -759,16 +759,25 @@ ready.then(async me=>{
     +'#soc .it{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--panel)}'
     +'#soc .it span.n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#soc .it small{color:var(--muted)}'
     +'#soc .m{color:var(--muted);font-size:12.5px;margin:6px 0}'
-    +'#cw{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:46;width:min(300px,calc(100vw - 24px));height:min(360px,calc(var(--vvh,100vh) - 90px));display:flex;flex-direction:column;background:rgba(18,12,52,.97);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.55);overflow:hidden;color:var(--ink)}'
+    +'#cw{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:46;width:min(310px,calc(100vw - 24px));height:min(400px,calc(var(--vvh,100vh) - 90px));display:flex;flex-direction:column;background:#17123f;border:1px solid var(--line);border-radius:14px 14px 10px 10px;box-shadow:0 12px 40px rgba(0,0,0,.6);overflow:hidden;color:var(--ink)}'
     +'#cw[hidden]{display:none}#cw.min{height:auto}#cw.min #socMsgs,#cw.min .cf{display:none}'
-    +'#cw .ch{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 12px;background:rgba(70,50,160,.5);border-bottom:1px solid var(--line);cursor:pointer}'
-    +'#cw .ch b{flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gold)}'
-    +'#cw button,#cw input{font:inherit;font-size:13px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}'
-    +'#cw button{cursor:pointer}#cw .ch button{padding:1px 9px;line-height:1.4;border-radius:8px}'
-    +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;padding:8px}'
-    +'#socMsgs div{max-width:82%;padding:6px 10px;border-radius:12px;font-size:13px;line-height:1.35;word-break:break-word;background:var(--panel);border:1px solid var(--line);align-self:flex-start}'
-    +'#socMsgs div.me{align-self:flex-end;background:rgba(90,65,200,.55)}#socMsgs time{display:block;font-size:10px;color:var(--muted);margin-top:1px}'
-    +'#cw .cf{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line)}#cw .cf input{flex:1;min-width:0;font-size:16px}'
+    +'#cw .ch{display:flex;align-items:center;gap:8px;padding:7px 6px 7px 10px;background:#1f1856;border-bottom:1px solid var(--line);cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.35)}'
+    +'#cw .av{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff}'
+    +'#cw .who{flex:1;min-width:0;line-height:1.2}#cw .who b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#cw .who small{font-size:11px;color:var(--muted)}'
+    +'#cw button,#cw input{font:inherit;font-size:13px;color:var(--ink)}#cw button{cursor:pointer;border:0;background:none}'
+    +'#cw .ch button{width:28px;height:28px;border-radius:50%;font-size:15px;line-height:1;color:var(--gold)}#cw .ch button:hover{background:rgba(255,255,255,.1)}'
+    +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;padding:8px 8px 4px;background:#120e33}'
+    +'#socMsgs .sep{align-self:center;font-size:10.5px;color:var(--muted);margin:10px 0 6px}'
+    +'#socMsgs .rw{display:flex;align-items:flex-end;gap:5px;margin-top:2px}#socMsgs .rw.me{justify-content:flex-end}#socMsgs .rw.f{margin-top:8px}'
+    +'#socMsgs .rw .av{width:22px;height:22px;font-size:11px;flex:none}#socMsgs .rw .sp{width:22px;flex:none}'
+    +'#socMsgs .bb{max-width:75%;padding:7px 12px;font-size:14px;line-height:1.35;word-break:break-word;white-space:pre-wrap;border-radius:18px;background:#2b2563;color:var(--ink)}'
+    +'#socMsgs .me .bb{background:linear-gradient(135deg,#7a4dff,#4f6bff);color:#fff}'
+    +'#socMsgs .th:not(.f) .bb{border-top-left-radius:5px}#socMsgs .th:not(.l) .bb{border-bottom-left-radius:5px}'
+    +'#socMsgs .me:not(.f) .bb{border-top-right-radius:5px}#socMsgs .me:not(.l) .bb{border-bottom-right-radius:5px}'
+    +'#socMsgs .rd{align-self:flex-end;font-size:10.5px;color:var(--muted);margin:2px 4px 0}'
+    +'#cw .cf{display:flex;align-items:center;gap:6px;padding:8px;border-top:1px solid var(--line);background:#17123f}'
+    +'#cw .cf input{flex:1;min-width:0;font-size:16px;padding:8px 14px;border-radius:20px;border:0;background:#2b2563;outline:none}#cw .cf input::placeholder{color:var(--muted)}'
+    +'#cw .cf button{flex:none;width:34px;height:34px;border-radius:50%;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;color:#9d86ff}#cw .cf button:hover{background:rgba(255,255,255,.1)}'
     +'#socBadge{background:var(--gold);color:#1a1033;border-radius:999px;padding:0 6px;margin-left:4px;font-size:11px}'
     +'#socToasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);z-index:90;display:flex;flex-direction:column;gap:8px;width:min(92vw,380px);pointer-events:none}'
     +'.tst{pointer-events:auto;text-align:left;font:inherit;font-size:13.5px;line-height:1.4;color:var(--ink);background:rgba(28,19,78,.97);border:1px solid var(--gold);border-radius:14px;padding:12px 14px;min-height:44px;box-shadow:0 8px 30px rgba(0,0,0,.5);cursor:pointer}';
@@ -781,7 +790,7 @@ ready.then(async me=>{
     const btn=document.createElement('button');btn.type='button';btn.id='socBtn';btn.innerHTML='Bạn bè<span id="socBadge" hidden></span>';
     $('acct').insertBefore(btn,$('acctPw'));document.body.appendChild(pn);
     const cw=document.createElement('div');cw.id='cw';cw.hidden=true;
-    cw.innerHTML='<div class="ch" id="cwHead"><b id="socWho"></b><button id="cwMin" type="button" aria-label="Thu nhỏ">–</button><button id="cwX" type="button" aria-label="Đóng">✕</button></div><div id="socMsgs" aria-live="polite"></div><div class="cf"><input id="socIn" maxlength="500" placeholder="Nhập tin nhắn…" autocomplete="off"><button id="socSend" type="button">Gửi</button></div>';
+    cw.innerHTML='<div class="ch" id="cwHead"><span class="av" id="cwAv"></span><div class="who"><b id="socWho"></b><small>Bạn bè</small></div><button id="cwMin" type="button" aria-label="Thu nhỏ">–</button><button id="cwX" type="button" aria-label="Đóng">✕</button></div><div id="socMsgs" aria-live="polite"></div><div class="cf"><input id="socIn" maxlength="500" placeholder="Nhập tin nhắn…" autocomplete="off"><button id="socSend" type="button" aria-label="Gửi">👍</button></div>';
     document.body.appendChild(cw);const c$=id=>cw.querySelector('#'+id);
     if(window.visualViewport){const vv=visualViewport,f=()=>{pn.style.setProperty('--vvh',vv.height+'px');pn.style.height=vv.height+'px';pn.style.top=vv.offsetTop+'px';cw.style.setProperty('--vvh',vv.height+'px');cw.style.bottom='calc(env(safe-area-inset-bottom,0px) + 12px + '+Math.max(0,innerHeight-vv.height-vv.offsetTop)+'px)';const M=c$('socMsgs');if(M&&!cw.hidden)M.scrollTop=M.scrollHeight};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()}
     const g=id=>pn.querySelector('#'+id),say=t=>{g('socMsg').textContent=t||''};
@@ -878,11 +887,20 @@ ready.then(async me=>{
       if(!live)summary();
       draw();markOpen();
     },()=>{});
+    function setAv(el,name){const n=(name||'?').trim()||'?',h=[...n].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);el.textContent=[...n][0].toUpperCase();el.style.background='linear-gradient(135deg,hsl('+h+' 70% 55%),hsl('+((h+45)%360)+' 70% 38%))'}
+    function fmtT(t){const d=new Date(t||0),n=new Date(),hm=d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});return d.toDateString()===n.toDateString()?hm:d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'})+' '+hm}
     function renderMsgs(){
       const M=c$('socMsgs');const atEnd=M.scrollTop+M.clientHeight>=M.scrollHeight-40;M.textContent='';
-      msgs.forEach(m=>{const d=document.createElement('div');if(m.from===key)d.className='me';
-        d.appendChild(document.createTextNode(m.text||''));
-        const t=document.createElement('time');t.textContent=new Date(m.t||0).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});d.appendChild(t);M.appendChild(d)});
+      const GAP=3*60000,SEP=15*60000,who=nm(chatKey);
+      msgs.forEach((m,i)=>{
+        const pv=msgs[i-1],nx=msgs[i+1],mine=m.from===key;
+        if(!pv||(m.t||0)-(pv.t||0)>SEP){const sp=document.createElement('div');sp.className='sep';sp.textContent=fmtT(m.t);M.appendChild(sp)}
+        const f=!pv||pv.from!==m.from||(m.t||0)-(pv.t||0)>GAP,l=!nx||nx.from!==m.from||(nx.t||0)-(m.t||0)>GAP;
+        const r=document.createElement('div');r.className='rw '+(mine?'me':'th')+(f?' f':'')+(l?' l':'');
+        if(!mine){if(l){const a=document.createElement('span');a.className='av';setAv(a,who);r.appendChild(a)}else{const a=document.createElement('span');a.className='sp';r.appendChild(a)}}
+        const b=document.createElement('div');b.className='bb';b.title=fmtT(m.t);b.appendChild(document.createTextNode(m.text||''));r.appendChild(b);M.appendChild(r);
+        if(mine&&!nx){const d=document.createElement('div');d.className='rd';d.textContent=m.read?'Đã xem':'Đã gửi';M.appendChild(d)}
+      });
       if(atEnd||!M.dataset.init){M.scrollTop=M.scrollHeight;M.dataset.init=1}
     }
     function setMin(v){cw.classList.toggle('min',v);if(!v){const M=c$('socMsgs');M.scrollTop=M.scrollHeight;markOpen()}}
@@ -890,7 +908,7 @@ ready.then(async me=>{
       if((fr.get(pid(key,k))||{}).status!=='accepted')return;
       pn.hidden=true;
       if(chatKey!==k){
-        chatKey=k;msgs=[];c$('socWho').textContent=nm(k);delete c$('socMsgs').dataset.init;renderMsgs();
+        chatKey=k;msgs=[];c$('socWho').textContent=nm(k);setAv(c$('cwAv'),nm(k));delete c$('socMsgs').dataset.init;renderMsgs();
         if(unsub)unsub();
         unsub=MS.where('pair','==',pid(key,k)).onSnapshot(s=>{msgs=s.docs.map(d=>d.data()).filter(Boolean).sort((x,y)=>(x.t||0)-(y.t||0)).slice(-200);renderMsgs();markOpen()},()=>say('Mất kết nối cuộc trò chuyện.'));
       }
@@ -901,17 +919,20 @@ ready.then(async me=>{
       chatKey=null;if(unsub){unsub();unsub=null}
       cw.hidden=true;cw.classList.remove('min');
     }
-    async function sendMsg(){
-      const i=c$('socIn'),text=i.value.trim();if(!text||!chatKey)return;
-      const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);i.value='';
-      try{await MS.doc(id).set({pair:pid(key,chatKey),from:key,to:chatKey,read:false,text:text.slice(0,500),t:Date.now()})}catch(e){i.value=text;say('Không gửi được tin nhắn.')}
+    async function sendMsg(quick){
+      const i=c$('socIn'),text=quick||i.value.trim();if(!text||!chatKey)return;
+      const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);if(!quick)i.value='';sync();
+      try{await MS.doc(id).set({pair:pid(key,chatKey),from:key,to:chatKey,read:false,text:text.slice(0,500),t:Date.now()})}catch(e){if(!quick)i.value=text;sync();say('Không gửi được tin nhắn.')}
     }
     const setBtns=()=>{g('socNotif').hidden=!('Notification' in window)||Notification.permission!=='default';g('socSnd').textContent='Âm báo: '+(sndOn()?'bật':'tắt')};
     g('socNotif').onclick=async()=>{try{await Notification.requestPermission()}catch(e){}setBtns()};
     g('socSnd').onclick=()=>{try{localStorage.setItem('tv_snd',sndOn()?'0':'1')}catch(e){}setBtns();unlockAudio();beep('msg')};
     setBtns();
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)markOpen()});
-    c$('socSend').onclick=sendMsg;
+    const PLANE='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>';
+    function sync(){const sb=c$('socSend'),has=!!c$('socIn').value.trim();if(sb.dataset.h!==(has?'1':'0')){sb.dataset.h=has?'1':'0';if(has)sb.innerHTML=PLANE;else sb.textContent='👍'}}
+    c$('socIn').addEventListener('input',sync);
+    c$('socSend').onclick=()=>{if(c$('socIn').value.trim())sendMsg();else sendMsg('👍')};
     c$('cwX').onclick=closeChat;
     c$('cwMin').onclick=e=>{e.stopPropagation();setMin(!cw.classList.contains('min'))};
     c$('cwHead').onclick=e=>{if(e.target.closest('button'))return;setMin(!cw.classList.contains('min'))};
