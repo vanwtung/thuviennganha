@@ -759,9 +759,16 @@ ready.then(async me=>{
     +'#soc .it{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--panel)}'
     +'#soc .it span.n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#soc .it small{color:var(--muted)}'
     +'#soc .m{color:var(--muted);font-size:12.5px;margin:6px 0}'
-    +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:10px 2px;min-height:200px;max-height:calc(var(--vvh,100vh) - 200px)}'
-    +'#socMsgs div{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.4;word-break:break-word;background:var(--panel);border:1px solid var(--line);align-self:flex-start}'
-    +'#socMsgs div.me{align-self:flex-end;background:rgba(90,65,200,.55)}#socMsgs time{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}'
+    +'#cw{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:46;width:min(300px,calc(100vw - 24px));height:min(360px,calc(var(--vvh,100vh) - 90px));display:flex;flex-direction:column;background:rgba(18,12,52,.97);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.55);overflow:hidden;color:var(--ink)}'
+    +'#cw[hidden]{display:none}#cw.min{height:auto}#cw.min #socMsgs,#cw.min .cf{display:none}'
+    +'#cw .ch{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 12px;background:rgba(70,50,160,.5);border-bottom:1px solid var(--line);cursor:pointer}'
+    +'#cw .ch b{flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gold)}'
+    +'#cw button,#cw input{font:inherit;font-size:13px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}'
+    +'#cw button{cursor:pointer}#cw .ch button{padding:1px 9px;line-height:1.4;border-radius:8px}'
+    +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;padding:8px}'
+    +'#socMsgs div{max-width:82%;padding:6px 10px;border-radius:12px;font-size:13px;line-height:1.35;word-break:break-word;background:var(--panel);border:1px solid var(--line);align-self:flex-start}'
+    +'#socMsgs div.me{align-self:flex-end;background:rgba(90,65,200,.55)}#socMsgs time{display:block;font-size:10px;color:var(--muted);margin-top:1px}'
+    +'#cw .cf{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line)}#cw .cf input{flex:1;min-width:0;font-size:16px}'
     +'#socBadge{background:var(--gold);color:#1a1033;border-radius:999px;padding:0 6px;margin-left:4px;font-size:11px}'
     +'#socToasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);z-index:90;display:flex;flex-direction:column;gap:8px;width:min(92vw,380px);pointer-events:none}'
     +'.tst{pointer-events:auto;text-align:left;font:inherit;font-size:13.5px;line-height:1.4;color:var(--ink);background:rgba(28,19,78,.97);border:1px solid var(--gold);border-radius:14px;padding:12px 14px;min-height:44px;box-shadow:0 8px 30px rgba(0,0,0,.5);cursor:pointer}';
@@ -770,11 +777,13 @@ ready.then(async me=>{
     pn.innerHTML='<div class="w"><div id="socMain"><div class="r" style="justify-content:space-between"><h2>Bạn bè</h2><button id="socX" type="button">Đóng</button></div>'
       +'<input id="socQ" placeholder="Tìm bạn theo tên hoặc tên đăng nhập" autocomplete="off" style="width:100%">'
       +'<div class="r" style="margin:8px 0 0"><button id="socNotif" type="button">Bật thông báo trên thiết bị</button><button id="socSnd" type="button"></button></div><p class="m" id="socMsg" role="status"></p><div id="socRes"></div><div id="socLists"></div></div>'
-      +'<div id="socChat" hidden style="display:none;flex-direction:column;flex:1"><div class="r"><button id="socBack" type="button">← Quay lại</button><h2 id="socWho" style="margin:0;font-size:24px"></h2></div>'
-      +'<div id="socMsgs" aria-live="polite"></div><div class="r"><input id="socIn" maxlength="500" placeholder="Nhập tin nhắn…" autocomplete="off"><button id="socSend" type="button">Gửi</button></div></div></div>';
+      +'</div>';
     const btn=document.createElement('button');btn.type='button';btn.id='socBtn';btn.innerHTML='Bạn bè<span id="socBadge" hidden></span>';
     $('acct').insertBefore(btn,$('acctPw'));document.body.appendChild(pn);
-    if(window.visualViewport){const vv=visualViewport,f=()=>{pn.style.setProperty('--vvh',vv.height+'px');pn.style.height=vv.height+'px';pn.style.top=vv.offsetTop+'px';const M=pn.querySelector('#socMsgs');if(M)M.scrollTop=M.scrollHeight};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()}
+    const cw=document.createElement('div');cw.id='cw';cw.hidden=true;
+    cw.innerHTML='<div class="ch" id="cwHead"><b id="socWho"></b><button id="cwMin" type="button" aria-label="Thu nhỏ">–</button><button id="cwX" type="button" aria-label="Đóng">✕</button></div><div id="socMsgs" aria-live="polite"></div><div class="cf"><input id="socIn" maxlength="500" placeholder="Nhập tin nhắn…" autocomplete="off"><button id="socSend" type="button">Gửi</button></div>';
+    document.body.appendChild(cw);const c$=id=>cw.querySelector('#'+id);
+    if(window.visualViewport){const vv=visualViewport,f=()=>{pn.style.setProperty('--vvh',vv.height+'px');pn.style.height=vv.height+'px';pn.style.top=vv.offsetTop+'px';cw.style.setProperty('--vvh',vv.height+'px');cw.style.bottom='calc(env(safe-area-inset-bottom,0px) + 12px + '+Math.max(0,innerHeight-vv.height-vv.offsetTop)+'px)';const M=c$('socMsgs');if(M&&!cw.hidden)M.scrollTop=M.scrollHeight};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()}
     const g=id=>pn.querySelector('#'+id),say=t=>{g('socMsg').textContent=t||''};
     const pid=(x,y)=>[x,y].sort().join('~'),nm=k=>names[k]||k;
     const fr=new Map(),unread=new Map();let all=[],chatKey=null,unsub=null,msgs=[];const BASE=document.title;
@@ -819,16 +828,29 @@ ready.then(async me=>{
     }
     const cnt=k=>{let n=0;unread.forEach(m=>{if(m.from===k)n++});return n?' ('+n+')':''};
     const sndOn=()=>{try{return localStorage.getItem('tv_snd')!=='0'}catch(e){return true}};
-    function beep(){try{if(!sndOn())return;const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=beep.c||(beep.c=new A()),o=c.createOscillator(),gn=c.createGain();o.frequency.value=880;gn.gain.setValueAtTime(.0001,c.currentTime);gn.gain.exponentialRampToValueAtTime(.12,c.currentTime+.02);gn.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.25);o.connect(gn);gn.connect(c.destination);o.start();o.stop(c.currentTime+.26)}catch(e){}}
+    const AC=()=>{const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;return AC.c||(AC.c=new A())};
+    const unlockAudio=()=>{try{const c=AC();if(c&&c.state!=='running')c.resume();if(c&&!AC.u){AC.u=1;const b=c.createBuffer(1,1,22050),s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start(0)}}catch(e){}};
+    ['pointerdown','touchstart','keydown','click'].forEach(ev=>document.addEventListener(ev,unlockAudio,{passive:true}));
+    const TONES={msg:[[520,0,'sine',1040,.16]],friend:[[523,0,'triangle',0,.35],[659,.11,'triangle',0,.35],[784,.22,'triangle',0,.35],[1047,.33,'triangle',0,.5]]};
+    function beep(kind){try{if(!sndOn())return;const c=AC();if(!c)return;if(c.state!=='running')c.resume();
+      const seq=TONES[kind]||TONES.msg,t0=c.currentTime+.01;
+      seq.forEach(([f,d,ty,f2,len])=>{const o=c.createOscillator(),gn=c.createGain();o.type=ty;o.frequency.setValueAtTime(f,t0+d);
+        if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d+len*.6);
+        gn.gain.setValueAtTime(.0001,t0+d);gn.gain.exponentialRampToValueAtTime(.3,t0+d+.01);gn.gain.exponentialRampToValueAtTime(.0001,t0+d+len);
+        o.connect(gn);gn.connect(c.destination);o.start(t0+d);o.stop(t0+d+len+.02)});
+      if(navigator.vibrate)navigator.vibrate(kind==='friend'?[80,60,80]:[120])}catch(e){}}
     const tw=document.createElement('div');tw.id='socToasts';tw.setAttribute('role','status');tw.setAttribute('aria-live','polite');document.body.appendChild(tw);
     function toast(text,fn,ms){const d=document.createElement('button');d.type='button';d.className='tst';d.textContent=text;d.onclick=()=>{d.remove();if(fn)fn()};tw.appendChild(d);while(tw.children.length>3)tw.firstChild.remove();setTimeout(()=>d.remove(),ms||6000)}
-    function openPanel(k){pn.hidden=false;say('');draw();if(k)openChat(k)}
+    function openPanel(k){if(k&&(fr.get(pid(key,k))||{}).status==='accepted'){openChat(k);return}pn.hidden=false;say('');draw()}
     function sys(title,body,k){try{if(!('Notification' in window)||Notification.permission!=='granted'||!document.hidden)return;const n=new Notification(title,{body,tag:'tv-'+k});n.onclick=()=>{window.focus();openPanel(k);n.close()}}catch(e){}}
-    function markOpen(){if(!chatKey||pn.hidden||document.hidden)return;unread.forEach((m,id)=>{if(m.from===chatKey&&!m._m){m._m=1;MS.doc(id).update({read:true}).catch(()=>{m._m=0})}})}
+    function markOpen(){if(!chatKey||cw.hidden||cw.classList.contains('min')||document.hidden)return;unread.forEach((m,id)=>{if(m.from===chatKey&&!m._m){m._m=1;MS.doc(id).update({read:true}).catch(()=>{m._m=0})}})}
     function incoming(m){
-      if(!pn.hidden&&chatKey===m.from&&!document.hidden)return;
+      const seen=!cw.hidden&&!cw.classList.contains('min')&&chatKey===m.from&&!document.hidden;
+      if(seen)return;
       const t=String(m.text||'').slice(0,100);
-      toast(nm(m.from)+': '+t,()=>openPanel(m.from));beep();sys(nm(m.from),t,m.from);
+      if(pn.hidden&&(!chatKey||chatKey===m.from))openChat(m.from,true);
+      if(cw.hidden||chatKey!==m.from)toast(nm(m.from)+': '+t,()=>openPanel(m.from));
+      beep('msg');sys(nm(m.from),t,m.from);
     }
     function summary(){
       const by={};unread.forEach(m=>{by[m.from]=(by[m.from]||0)+1});
@@ -836,11 +858,11 @@ ready.then(async me=>{
       if(unread.size)parts.push(unread.size+' tin nhắn chưa đọc từ '+Object.keys(by).map(k=>nm(k)+' ('+by[k]+')').join(', '));
       if(inc)parts.push(inc+' lời mời kết bạn');
       if(!parts.length)return;
-      toast('Bạn có '+parts.join(' và '),()=>openPanel(),9000);beep();
+      toast('Bạn có '+parts.join(' và '),()=>openPanel(),9000);beep('msg');
     }
     const mkApply=()=>{let first=true;return snap=>{const live=!first;first=false;
       snap.docChanges().forEach(c=>{if(c.type==='removed')fr.delete(c.doc.id);else{const d=c.doc.data();fr.set(c.doc.id,d);
-        if(live&&c.type==='added'&&d.status==='pending'&&d.from!==key){toast(nm(d.from)+' đã gửi lời mời kết bạn',()=>openPanel());beep()}}});
+        if(live&&c.type==='added'&&d.status==='pending'&&d.from!==key){toast(nm(d.from)+' đã gửi lời mời kết bạn',()=>openPanel());beep('friend')}}});
       draw()}};
     const onErr=()=>say('Mất kết nối với danh sách bạn bè.');
     FR.where('a','==',key).onSnapshot(mkApply(),onErr);FR.where('b','==',key).onSnapshot(mkApply(),onErr);
@@ -857,40 +879,46 @@ ready.then(async me=>{
       draw();markOpen();
     },()=>{});
     function renderMsgs(){
-      const M=g('socMsgs');const atEnd=M.scrollTop+M.clientHeight>=M.scrollHeight-40;M.textContent='';
+      const M=c$('socMsgs');const atEnd=M.scrollTop+M.clientHeight>=M.scrollHeight-40;M.textContent='';
       msgs.forEach(m=>{const d=document.createElement('div');if(m.from===key)d.className='me';
         d.appendChild(document.createTextNode(m.text||''));
         const t=document.createElement('time');t.textContent=new Date(m.t||0).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});d.appendChild(t);M.appendChild(d)});
       if(atEnd||!M.dataset.init){M.scrollTop=M.scrollHeight;M.dataset.init=1}
     }
-    function openChat(k){
+    function setMin(v){cw.classList.toggle('min',v);if(!v){const M=c$('socMsgs');M.scrollTop=M.scrollHeight;markOpen()}}
+    function openChat(k,auto){
       if((fr.get(pid(key,k))||{}).status!=='accepted')return;
-      chatKey=k;msgs=[];g('socWho').textContent=nm(k);delete g('socMsgs').dataset.init;
-      g('socMain').style.display='none';const c=g('socChat');c.hidden=false;c.style.display='flex';renderMsgs();
-      if(unsub)unsub();
-      unsub=MS.where('pair','==',pid(key,k)).onSnapshot(s=>{msgs=s.docs.map(d=>d.data()).filter(Boolean).sort((x,y)=>(x.t||0)-(y.t||0)).slice(-200);renderMsgs();markOpen()},()=>say('Mất kết nối cuộc trò chuyện.'));
-      g('socIn').focus();
+      pn.hidden=true;
+      if(chatKey!==k){
+        chatKey=k;msgs=[];c$('socWho').textContent=nm(k);delete c$('socMsgs').dataset.init;renderMsgs();
+        if(unsub)unsub();
+        unsub=MS.where('pair','==',pid(key,k)).onSnapshot(s=>{msgs=s.docs.map(d=>d.data()).filter(Boolean).sort((x,y)=>(x.t||0)-(y.t||0)).slice(-200);renderMsgs();markOpen()},()=>say('Mất kết nối cuộc trò chuyện.'));
+      }
+      cw.hidden=false;setMin(false);
+      if(!auto)c$('socIn').focus();
     }
     function closeChat(){
       chatKey=null;if(unsub){unsub();unsub=null}
-      const c=g('socChat');c.hidden=true;c.style.display='none';g('socMain').style.display='';
+      cw.hidden=true;cw.classList.remove('min');
     }
     async function sendMsg(){
-      const i=g('socIn'),text=i.value.trim();if(!text||!chatKey)return;
+      const i=c$('socIn'),text=i.value.trim();if(!text||!chatKey)return;
       const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);i.value='';
       try{await MS.doc(id).set({pair:pid(key,chatKey),from:key,to:chatKey,read:false,text:text.slice(0,500),t:Date.now()})}catch(e){i.value=text;say('Không gửi được tin nhắn.')}
     }
     const setBtns=()=>{g('socNotif').hidden=!('Notification' in window)||Notification.permission!=='default';g('socSnd').textContent='Âm báo: '+(sndOn()?'bật':'tắt')};
     g('socNotif').onclick=async()=>{try{await Notification.requestPermission()}catch(e){}setBtns()};
-    g('socSnd').onclick=()=>{try{localStorage.setItem('tv_snd',sndOn()?'0':'1')}catch(e){}setBtns()};
+    g('socSnd').onclick=()=>{try{localStorage.setItem('tv_snd',sndOn()?'0':'1')}catch(e){}setBtns();unlockAudio();beep('msg')};
     setBtns();
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)markOpen()});
-    g('socSend').onclick=sendMsg;
-    g('socIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();sendMsg()}});
-    g('socBack').onclick=closeChat;
+    c$('socSend').onclick=sendMsg;
+    c$('cwX').onclick=closeChat;
+    c$('cwMin').onclick=e=>{e.stopPropagation();setMin(!cw.classList.contains('min'))};
+    c$('cwHead').onclick=e=>{if(e.target.closest('button'))return;setMin(!cw.classList.contains('min'))};
+    c$('socIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();sendMsg()}});
     g('socQ').oninput=draw;
-    g('socX').onclick=()=>{pn.hidden=true;closeChat()};
-    addEventListener('keydown',e=>{if(e.key==='Escape'&&!pn.hidden){if(chatKey)closeChat();else pn.hidden=true}});
+    g('socX').onclick=()=>{pn.hidden=true};
+    addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!pn.hidden)pn.hidden=true;else if(!cw.hidden)closeChat()});
     btn.onclick=async()=>{pn.hidden=false;say('');await loadProfiles();draw()};
   }catch(e){}
 });
