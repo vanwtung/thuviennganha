@@ -762,12 +762,14 @@ ready.then(async me=>{
     +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:10px 2px;min-height:200px;max-height:calc(var(--vvh,100vh) - 200px)}'
     +'#socMsgs div{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.4;word-break:break-word;background:var(--panel);border:1px solid var(--line);align-self:flex-start}'
     +'#socMsgs div.me{align-self:flex-end;background:rgba(90,65,200,.55)}#socMsgs time{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}'
-    +'#socBadge{background:var(--gold);color:#1a1033;border-radius:999px;padding:0 6px;margin-left:4px;font-size:11px}';
+    +'#socBadge{background:var(--gold);color:#1a1033;border-radius:999px;padding:0 6px;margin-left:4px;font-size:11px}'
+    +'#socToasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);z-index:90;display:flex;flex-direction:column;gap:8px;width:min(92vw,380px);pointer-events:none}'
+    +'.tst{pointer-events:auto;text-align:left;font:inherit;font-size:13.5px;line-height:1.4;color:var(--ink);background:rgba(28,19,78,.97);border:1px solid var(--gold);border-radius:14px;padding:12px 14px;min-height:44px;box-shadow:0 8px 30px rgba(0,0,0,.5);cursor:pointer}';
     document.head.appendChild(st);
     const pn=document.createElement('div');pn.id='soc';pn.hidden=true;
     pn.innerHTML='<div class="w"><div id="socMain"><div class="r" style="justify-content:space-between"><h2>Bạn bè</h2><button id="socX" type="button">Đóng</button></div>'
       +'<input id="socQ" placeholder="Tìm bạn theo tên hoặc tên đăng nhập" autocomplete="off" style="width:100%">'
-      +'<p class="m" id="socMsg" role="status"></p><div id="socRes"></div><div id="socLists"></div></div>'
+      +'<div class="r" style="margin:8px 0 0"><button id="socNotif" type="button">Bật thông báo trên thiết bị</button><button id="socSnd" type="button"></button></div><p class="m" id="socMsg" role="status"></p><div id="socRes"></div><div id="socLists"></div></div>'
       +'<div id="socChat" hidden style="display:none;flex-direction:column;flex:1"><div class="r"><button id="socBack" type="button">← Quay lại</button><h2 id="socWho" style="margin:0;font-size:24px"></h2></div>'
       +'<div id="socMsgs" aria-live="polite"></div><div class="r"><input id="socIn" maxlength="500" placeholder="Nhập tin nhắn…" autocomplete="off"><button id="socSend" type="button">Gửi</button></div></div></div>';
     const btn=document.createElement('button');btn.type='button';btn.id='socBtn';btn.innerHTML='Bạn bè<span id="socBadge" hidden></span>';
@@ -775,7 +777,7 @@ ready.then(async me=>{
     if(window.visualViewport){const vv=visualViewport,f=()=>{pn.style.setProperty('--vvh',vv.height+'px');pn.style.height=vv.height+'px';pn.style.top=vv.offsetTop+'px';const M=pn.querySelector('#socMsgs');if(M)M.scrollTop=M.scrollHeight};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()}
     const g=id=>pn.querySelector('#'+id),say=t=>{g('socMsg').textContent=t||''};
     const pid=(x,y)=>[x,y].sort().join('~'),nm=k=>names[k]||k;
-    const fr=new Map();let all=[],chatKey=null,unsub=null,msgs=[];
+    const fr=new Map(),unread=new Map();let all=[],chatKey=null,unsub=null,msgs=[];const BASE=document.title;
     const err=e=>say('Lỗi: '+((e&&(e.code||e.message))||'không rõ'));
     async function loadProfiles(){try{const s=await PF.get();all=s.docs.map(d=>d.data()).filter(Boolean);all.forEach(p=>{if(p.key)names[p.key]=p.name||p.key})}catch(e){}}
     const other=f=>f.a===key?f.b:f.a;
@@ -809,16 +811,51 @@ ready.then(async me=>{
       const fl=[...fr.values()],inc=fl.filter(f=>f.status==='pending'&&f.from!==key),out=fl.filter(f=>f.status==='pending'&&f.from===key),ok=fl.filter(f=>f.status==='accepted');
       const sec=(t,arr,mk)=>{if(!arr.length)return;const h=document.createElement('h3');h.textContent=t;Ls.appendChild(h);arr.forEach(f=>Ls.appendChild(mk(f)))};
       sec('LỜI MỜI KẾT BẠN',inc,f=>item(nm(other(f)),'@'+other(f),[['Chấp nhận',()=>acc(other(f))],['Từ chối',()=>del(other(f))]]));
-      sec('BẠN BÈ',ok,f=>item(nm(other(f)),'@'+other(f),[['Nhắn tin',()=>openChat(other(f))],['Hủy kết bạn',()=>del(other(f))]]));
+      sec('BẠN BÈ',ok,f=>item(nm(other(f)),'@'+other(f),[['Nhắn tin'+cnt(other(f)),()=>openChat(other(f))],['Hủy kết bạn',()=>del(other(f))]]));
       sec('ĐÃ GỬI LỜI MỜI',out,f=>item(nm(other(f)),'@'+other(f),[['Thu hồi',()=>del(other(f))]]));
       if(!fl.length&&!q){const p=document.createElement('p');p.className='m';p.textContent='Chưa có bạn bè. Hãy gõ tên vào ô tìm kiếm để kết bạn.';Ls.appendChild(p)}
-      const n=inc.length,bd=$('socBadge');bd.hidden=!n;bd.textContent=n;
+      const n=inc.length+unread.size,bd=$('socBadge');bd.hidden=!n;bd.textContent=n;document.title=(n?'('+n+') ':'')+BASE;
       if(chatKey&&!(fr.get(pid(key,chatKey))||{}).status)closeChat();
     }
-    const apply=snap=>{snap.docChanges().forEach(c=>{if(c.type==='removed')fr.delete(c.doc.id);else fr.set(c.doc.id,c.doc.data())});draw()};
+    const cnt=k=>{let n=0;unread.forEach(m=>{if(m.from===k)n++});return n?' ('+n+')':''};
+    const sndOn=()=>{try{return localStorage.getItem('tv_snd')!=='0'}catch(e){return true}};
+    function beep(){try{if(!sndOn())return;const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=beep.c||(beep.c=new A()),o=c.createOscillator(),gn=c.createGain();o.frequency.value=880;gn.gain.setValueAtTime(.0001,c.currentTime);gn.gain.exponentialRampToValueAtTime(.12,c.currentTime+.02);gn.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.25);o.connect(gn);gn.connect(c.destination);o.start();o.stop(c.currentTime+.26)}catch(e){}}
+    const tw=document.createElement('div');tw.id='socToasts';tw.setAttribute('role','status');tw.setAttribute('aria-live','polite');document.body.appendChild(tw);
+    function toast(text,fn,ms){const d=document.createElement('button');d.type='button';d.className='tst';d.textContent=text;d.onclick=()=>{d.remove();if(fn)fn()};tw.appendChild(d);while(tw.children.length>3)tw.firstChild.remove();setTimeout(()=>d.remove(),ms||6000)}
+    function openPanel(k){pn.hidden=false;say('');draw();if(k)openChat(k)}
+    function sys(title,body,k){try{if(!('Notification' in window)||Notification.permission!=='granted'||!document.hidden)return;const n=new Notification(title,{body,tag:'tv-'+k});n.onclick=()=>{window.focus();openPanel(k);n.close()}}catch(e){}}
+    function markOpen(){if(!chatKey||pn.hidden||document.hidden)return;unread.forEach((m,id)=>{if(m.from===chatKey&&!m._m){m._m=1;MS.doc(id).update({read:true}).catch(()=>{m._m=0})}})}
+    function incoming(m){
+      if(!pn.hidden&&chatKey===m.from&&!document.hidden)return;
+      const t=String(m.text||'').slice(0,100);
+      toast(nm(m.from)+': '+t,()=>openPanel(m.from));beep();sys(nm(m.from),t,m.from);
+    }
+    function summary(){
+      const by={};unread.forEach(m=>{by[m.from]=(by[m.from]||0)+1});
+      const inc=[...fr.values()].filter(f=>f.status==='pending'&&f.from!==key).length,parts=[];
+      if(unread.size)parts.push(unread.size+' tin nhắn chưa đọc từ '+Object.keys(by).map(k=>nm(k)+' ('+by[k]+')').join(', '));
+      if(inc)parts.push(inc+' lời mời kết bạn');
+      if(!parts.length)return;
+      toast('Bạn có '+parts.join(' và '),()=>openPanel(),9000);beep();
+    }
+    const mkApply=()=>{let first=true;return snap=>{const live=!first;first=false;
+      snap.docChanges().forEach(c=>{if(c.type==='removed')fr.delete(c.doc.id);else{const d=c.doc.data();fr.set(c.doc.id,d);
+        if(live&&c.type==='added'&&d.status==='pending'&&d.from!==key){toast(nm(d.from)+' đã gửi lời mời kết bạn',()=>openPanel());beep()}}});
+      draw()}};
     const onErr=()=>say('Mất kết nối với danh sách bạn bè.');
-    FR.where('a','==',key).onSnapshot(apply,onErr);FR.where('b','==',key).onSnapshot(apply,onErr);
+    FR.where('a','==',key).onSnapshot(mkApply(),onErr);FR.where('b','==',key).onSnapshot(mkApply(),onErr);
     await loadProfiles();draw();
+    let mFirst=true;
+    MS.where('to','==',key).where('read','==',false).onSnapshot(sn=>{
+      const live=!mFirst;mFirst=false;
+      sn.docChanges().forEach(c=>{
+        if(c.type==='removed'){unread.delete(c.doc.id);return}
+        const d={...c.doc.data(),id:c.doc.id};unread.set(c.doc.id,d);
+        if(live&&c.type==='added')incoming(d);
+      });
+      if(!live)summary();
+      draw();markOpen();
+    },()=>{});
     function renderMsgs(){
       const M=g('socMsgs');const atEnd=M.scrollTop+M.clientHeight>=M.scrollHeight-40;M.textContent='';
       msgs.forEach(m=>{const d=document.createElement('div');if(m.from===key)d.className='me';
@@ -831,7 +868,7 @@ ready.then(async me=>{
       chatKey=k;msgs=[];g('socWho').textContent=nm(k);delete g('socMsgs').dataset.init;
       g('socMain').style.display='none';const c=g('socChat');c.hidden=false;c.style.display='flex';renderMsgs();
       if(unsub)unsub();
-      unsub=MS.where('pair','==',pid(key,k)).onSnapshot(s=>{msgs=s.docs.map(d=>d.data()).filter(Boolean).sort((x,y)=>(x.t||0)-(y.t||0)).slice(-200);renderMsgs()},()=>say('Mất kết nối cuộc trò chuyện.'));
+      unsub=MS.where('pair','==',pid(key,k)).onSnapshot(s=>{msgs=s.docs.map(d=>d.data()).filter(Boolean).sort((x,y)=>(x.t||0)-(y.t||0)).slice(-200);renderMsgs();markOpen()},()=>say('Mất kết nối cuộc trò chuyện.'));
       g('socIn').focus();
     }
     function closeChat(){
@@ -841,8 +878,13 @@ ready.then(async me=>{
     async function sendMsg(){
       const i=g('socIn'),text=i.value.trim();if(!text||!chatKey)return;
       const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);i.value='';
-      try{await MS.doc(id).set({pair:pid(key,chatKey),from:key,text:text.slice(0,500),t:Date.now()})}catch(e){i.value=text;say('Không gửi được tin nhắn.')}
+      try{await MS.doc(id).set({pair:pid(key,chatKey),from:key,to:chatKey,read:false,text:text.slice(0,500),t:Date.now()})}catch(e){i.value=text;say('Không gửi được tin nhắn.')}
     }
+    const setBtns=()=>{g('socNotif').hidden=!('Notification' in window)||Notification.permission!=='default';g('socSnd').textContent='Âm báo: '+(sndOn()?'bật':'tắt')};
+    g('socNotif').onclick=async()=>{try{await Notification.requestPermission()}catch(e){}setBtns()};
+    g('socSnd').onclick=()=>{try{localStorage.setItem('tv_snd',sndOn()?'0':'1')}catch(e){}setBtns()};
+    setBtns();
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)markOpen()});
     g('socSend').onclick=sendMsg;
     g('socIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();sendMsg()}});
     g('socBack').onclick=closeChat;
