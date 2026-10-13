@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03020a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
 <title>Thư viện kỷ niệm</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -125,6 +129,43 @@
   #acct button:hover{background:rgba(70,50,160,.55);border-color:rgba(210,200,255,.6)}
   @media (max-width:560px){#acct{top:calc(env(safe-area-inset-top,0px) + 74px)}}
   @media (prefers-reduced-motion: reduce){#auth{transition:none}}
+  /* ===== tối ưu cho điện thoại / màn hình cảm ứng ===== */
+  html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
+  canvas#c{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  button{touch-action:manipulation}
+  @media (hover:none){#tip{display:none}}
+  @media (pointer:coarse){
+    .bar button,#lb button,#acct button,.atabs button,html #soc button,html #adm button{min-height:44px}
+    .aclose{width:44px;height:44px}
+    .eye{padding:11px 12px}
+    .chk{min-height:44px}
+    .fld input[type=text],.fld input[type=password],#lbName,html #soc input,html #adm input{font-size:16px}
+    .alink{padding:8px 4px}
+  }
+  @media (max-width:560px){
+    .top{padding-left:16px;padding-right:16px}
+    .top h1{font-size:22px}
+    .top p{font-size:11.5px}
+    .bar{gap:6px;max-width:calc(100vw - 16px)}
+    .bar button{padding:10px 14px;font-size:12.5px}
+    .hint{font-size:13px;padding:9px 16px;bottom:calc(env(safe-area-inset-bottom,0px) + 118px)}
+    #lb{padding:16px;gap:10px}
+    #lb img{max-height:56vh;max-height:56dvh}
+    #lb h2{font-size:24px}
+    .lbrow{flex-wrap:wrap;justify-content:center}
+    .acard{padding:26px 18px 20px;border-radius:18px}
+    #acct{left:12px;right:12px;max-width:none;gap:6px}
+    #acctName{max-width:40vw}
+  }
+  @media (max-height:480px) and (orientation:landscape){
+    .top p{display:none}
+    #lb{flex-direction:row;flex-wrap:wrap;gap:8px 16px}
+    #lb img{max-height:62vh;max-width:50vw}
+    .hint{bottom:calc(env(safe-area-inset-bottom,0px) + 70px)}
+    #acct{top:calc(env(safe-area-inset-top,0px) + 10px)}
+    .acard{padding:16px 18px}
+    .asub{margin-bottom:8px}
+  }
 </style>
 </head>
 <body>
@@ -718,7 +759,7 @@ ready.then(async me=>{
     +'#soc .it{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--panel)}'
     +'#soc .it span.n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#soc .it small{color:var(--muted)}'
     +'#soc .m{color:var(--muted);font-size:12.5px;margin:6px 0}'
-    +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:10px 2px;min-height:200px;max-height:calc(100vh - 220px)}'
+    +'#socMsgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:10px 2px;min-height:200px;max-height:calc(var(--vvh,100vh) - 200px)}'
     +'#socMsgs div{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.4;word-break:break-word;background:var(--panel);border:1px solid var(--line);align-self:flex-start}'
     +'#socMsgs div.me{align-self:flex-end;background:rgba(90,65,200,.55)}#socMsgs time{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}'
     +'#socBadge{background:var(--gold);color:#1a1033;border-radius:999px;padding:0 6px;margin-left:4px;font-size:11px}';
@@ -731,6 +772,7 @@ ready.then(async me=>{
       +'<div id="socMsgs" aria-live="polite"></div><div class="r"><input id="socIn" maxlength="500" placeholder="Nhập tin nhắn…" autocomplete="off"><button id="socSend" type="button">Gửi</button></div></div></div>';
     const btn=document.createElement('button');btn.type='button';btn.id='socBtn';btn.innerHTML='Bạn bè<span id="socBadge" hidden></span>';
     $('acct').insertBefore(btn,$('acctPw'));document.body.appendChild(pn);
+    if(window.visualViewport){const vv=visualViewport,f=()=>{pn.style.setProperty('--vvh',vv.height+'px');pn.style.height=vv.height+'px';pn.style.top=vv.offsetTop+'px';const M=pn.querySelector('#socMsgs');if(M)M.scrollTop=M.scrollHeight};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()}
     const g=id=>pn.querySelector('#'+id),say=t=>{g('socMsg').textContent=t||''};
     const pid=(x,y)=>[x,y].sort().join('~'),nm=k=>names[k]||k;
     const fr=new Map();let all=[],chatKey=null,unsub=null,msgs=[];
@@ -830,7 +872,7 @@ ready.then(me=>{
       if(!me||me.key!==OWNER_KEY)return;
     }
     const st=document.createElement('style');
-    st.textContent='#admBtn{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:60;font:inherit;font-size:12px;color:var(--ink);background:var(--panel);border:1px solid var(--gold);padding:8px 14px;border-radius:999px;cursor:pointer}'
+    st.textContent='#acct #admBtn{border-color:var(--gold)}'
     +'#adm{position:fixed;inset:0;z-index:70;background:rgba(3,2,10,.94);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px 24px;color:var(--ink)}'
     +'#adm[hidden]{display:none}#adm .w{max-width:760px;margin:0 auto}'
     +'#adm h2{margin:0 0 4px;font-family:"Cormorant Garamond",Georgia,serif;font-size:28px;color:var(--gold)}'
@@ -846,7 +888,7 @@ ready.then(me=>{
     pn.innerHTML='<div class="w"><h2>Quản trị tài khoản</h2><p class="m">Chỉ chủ trang thấy màn hình này.</p>'
       +'<div class="r"><input id="admQ" placeholder="Tìm theo tên hoặc tên đăng nhập" autocomplete="off"><button id="admR" type="button">Tải lại</button><button id="admX" type="button">Đóng</button></div>'
       +'<p class="m" id="admMsg" role="status"></p><div id="admL"></div></div>';
-    document.body.append(btn,pn);
+    $('acct').appendChild(btn);document.body.appendChild(pn);
     const L=pn.querySelector('#admL'),Q=pn.querySelector('#admQ'),M=pn.querySelector('#admMsg');let rows=[];
     const say=t=>{M.textContent=t||''};
     const fmt=t=>t?new Date(t).toLocaleString('vi-VN'):'—';
@@ -1220,6 +1262,7 @@ const flashTo=(v,d)=>{const s=flashV;return tween(d,e=>setFlash(s+(v-s)*e),easeI
 const fit=hw=>{const th=Math.tan(camera.fov*Math.PI/360),hh=th*camera.aspect;return Math.max(hw/hh,2.3/th)+.4};
 const layoutScale=()=>clamp(camera.aspect/1.4,.5,1);
 const rowHW=()=>{const s=layoutScale();return 3.3*s+1.2*s+.3};
+const TOUCHY=matchMedia('(pointer:coarse)').matches;
 function showHint(text,stat){hint.textContent=text;hint.classList.toggle('static',!!stat);hint.classList.add('on')}
 function hideHint(){hint.classList.remove('on')}
 
@@ -1303,7 +1346,7 @@ async function enterGalaxy(){
   },easeOutCubic);
   mode='galaxy';
   bar.classList.add('on');
-  showHint(cards.length?'Kéo để xoay · Lăn chuột để phóng to · Chạm vào một ảnh để xem':'Sách này còn trống — bấm "Thêm ảnh vào sách này" để đưa ảnh vào',true);
+  showHint(cards.length?(TOUCHY?'Kéo để xoay · Chụm hai ngón để phóng to · Chạm vào ảnh để xem · Chạm hai lần để về mặc định':'Kéo để xoay · Lăn chuột để phóng to · Chạm vào một ảnh để xem'):'Sách này còn trống — bấm "Thêm ảnh vào sách này" để đưa ảnh vào',true);
   setTimeout(()=>{if(mode==='galaxy')hideHint()},8000);
   tween(900,e=>{cards.forEach(c=>{c.material.opacity=e;c.userData.sc=lerp(.1,1,e)})},easeOutCubic);
 }
@@ -1375,7 +1418,7 @@ function endPtr(e){
     const quick=performance.now()-downInfo.t<650&&moved<8;downInfo=null;
     if(quick){
       if(mode==='book'&&bookState==='shelf'){const b=bookAt(e.clientX,e.clientY);if(b)selectBook(b)}
-      else if(mode==='galaxy'){const s=cardAt(e.clientX,e.clientY);if(s)openLB(s)}
+      else if(mode==='galaxy'){const s=cardAt(e.clientX,e.clientY);if(s)openLB(s);else{const n=performance.now();if(n-(window._tap||0)<320){tgt.r=defaultR();tgt.phi=1.18;window._tap=0}else window._tap=n}}
     }
   }
 }
