@@ -96,7 +96,7 @@
   #auth form[hidden]{display:none}
   .fld{margin-bottom:12px}
   .fld label{display:block;font-size:12px;font-weight:400;color:var(--muted);margin:0 0 5px 2px}
-  .fld input[type=text],.fld input[type=password]{width:100%;font:inherit;font-size:15px;color:var(--ink);padding:11px 14px;border-radius:12px;
+  .fld input[type=text],.fld input[type=password],.fld input[type=date]{width:100%;font:inherit;font-size:15px;color:var(--ink);padding:11px 14px;border-radius:12px;
     background:rgba(0,0,0,.32);border:1px solid var(--line);outline:none;transition:border-color .2s,box-shadow .2s}
   .fld input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,215,154,.15)}
   .fld input[aria-invalid="true"]{border-color:rgba(255,130,150,.8)}
@@ -426,6 +426,7 @@ button.pav{cursor:pointer}
 <div class="bar" id="bar">
   <button id="bAuto" aria-pressed="true">Tự xoay: bật</button>
   <button id="bAdd">Thêm ảnh vào sách này</button>
+  <button id="bFocus" hidden>Về ngân hà chính</button>
   <button id="bBack">Về kệ sách</button>
 </div>
 <input type="file" id="file" accept="image/*" multiple hidden>
@@ -479,6 +480,9 @@ button.pav{cursor:pointer}
     <form id="fReg" novalidate hidden>
       <div class="fld"><label for="rgName">Tên hiển thị <span style="opacity:.6">(tuỳ chọn)</span></label>
         <input id="rgName" type="text" autocomplete="nickname" maxlength="30"></div>
+      <div class="fld"><label for="rgDob">Ngày tháng năm sinh</label>
+        <input id="rgDob" type="date" min="1900-01-01" autocomplete="bday">
+        <small>Bạn có thể sửa lại trong trang cá nhân.</small></div>
       <div class="fld"><label for="rgUser">Tên đăng nhập</label>
         <input id="rgUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20">
         <small>3–20 ký tự: chữ thường, số, dấu chấm hoặc gạch dưới; bắt đầu bằng chữ hoặc số</small></div>
@@ -670,7 +674,7 @@ function fsAdapter(F,fs){
   });
   return{fb:true,collection:n=>({...Q(F.collection(fs,n)),doc:id=>{const r=F.doc(fs,n,id);return{
     get:async()=>{const d=await F.getDoc(r);return{id:d.id,exists:d.exists(),data:()=>d.data()}},
-    set:d=>F.setDoc(r,d),update:d=>F.updateDoc(r,d),delete:()=>F.deleteDoc(r)}}})};
+    set:(d,o)=>(o&&o.merge)?F.setDoc(r,d,{merge:true}):F.setDoc(r,d),update:d=>F.updateDoc(r,d),delete:()=>F.deleteDoc(r)}}})};
 }
 window.TVFBReady=(async()=>{
   if(window.claude&&claude.use)return null;
@@ -730,7 +734,8 @@ function passProblem(pw,user){
   return'';
 }
 const OWNER_KEY='tung1207',OWNER_NAME='vawntung',OWNER_ITER=150000,OWNER_SALT='e64ee18c9f286dabff468eb0d92082e5',OWNER_HASH='b7ca3a8bf2af21dfb138f855c429b5cf56d819f3b4685c42e0ae175ca3180745',RESERVED=['tung1207','quantri','admin','administrator'];
-async function register(name,user,pw){
+const dobOk=v=>{v=String(v||'').trim();const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v);if(!m)return false;const y=+m[1],mo=+m[2],da=+m[3],d=new Date(y,mo-1,da);if(d.getFullYear()!==y||d.getMonth()!==mo-1||d.getDate()!==da)return false;const n=new Date();if(d>n)return false;let a=n.getFullYear()-y;if(n.getMonth()<mo-1||(n.getMonth()===mo-1&&n.getDate()<da))a--;return a>=0&&a<=120};
+async function register(name,user,pw,dob){
   const key=user.trim().toLowerCase(),iter=SUBTLE?ITER:ITER_JS;
   await pickBackend();
   if(FBMODE){
@@ -739,8 +744,8 @@ async function register(name,user,pw){
     try{await FBX.Au.createUserWithEmailAndPassword(FBX.auth,em(key),pw)}
     catch(e){if(e&&e.code==='auth/email-already-in-use')throw{code:'exists'};throw e}
     try{
-      await cloudDb.collection('accounts').doc(key).set({key,name:nm,created:Date.now()});
-      await cloudDb.collection('profiles').doc(key).set({key,name:nm,t:Date.now()});
+      await cloudDb.collection('accounts').doc(key).set({key,name:nm,dob,created:Date.now()});
+      await cloudDb.collection('profiles').doc(key).set({key,name:nm,dob,t:Date.now()});
     }catch(e){
       try{await FBX.Au.deleteUser(FBX.auth.currentUser)}catch(x){}
       throw(e&&e.code==='permission-denied')?{code:'taken'}:e;
@@ -750,7 +755,7 @@ async function register(name,user,pw){
   if(RESERVED.includes(key))throw{code:'exists'};
   if(await Users.get(key))throw{code:'exists'};
   const salt=rnd(16),hash=await derive(pw,salt,iter);
-  const rec={key,name:(name||'').trim()||key,salt,iter,hash,created:Date.now(),toks:[]};
+  const rec={key,name:(name||'').trim()||key,dob,salt,iter,hash,created:Date.now(),toks:[]};
   try{await Users.add(rec)}
   catch(e){if(e&&e.name==='ConstraintError')throw{code:'exists'};throw e}
 }
@@ -777,7 +782,7 @@ async function login(user,pw,remember){
     if(!a.exists){await ref.set({key,name:key===OWNER_KEY?OWNER_NAME:key,created:Date.now()});a=await ref.get()}
     const d=a.data()||{};
     if(d.disabled){await A.signOut(au);throw{code:'disabled'}}
-    try{await ref.update({lastLogin:Date.now()});await cloudDb.collection('profiles').doc(key).set({key,name:d.name||key,t:Date.now()})}catch(e){}
+    try{await ref.update({lastLogin:Date.now()});await cloudDb.collection('profiles').doc(key).set({key,name:d.name||key,...(d.dob?{dob:d.dob}:{}),t:Date.now()},{merge:true})}catch(e){}
     return{key,name:d.name||key};
   }
   const fx=key===OWNER_KEY;
@@ -824,6 +829,7 @@ async function logout(){
 
 /* ---- giao diện ---- */
 const overlay=$('auth'),forms={login:$('fLogin'),register:$('fReg'),change:$('fPw')};
+try{$('rgDob').max=new Date().toISOString().slice(0,10)}catch(e){}
 const tabs=[...document.querySelectorAll('#aTabs button')];
 const LOCKABLE=['c','shelfBar','bar','lb','acct'];
 let view='login',busy=false,user=null,resolveReady,timer=0,dismissible=false;
@@ -952,18 +958,19 @@ forms.login.addEventListener('submit',async e=>{
 });
 forms.register.addEventListener('submit',async e=>{
   e.preventDefault();if(busy)return;
-  const n=$('rgName'),u=$('rgUser'),p=$('rgPass'),p2=$('rgPass2'),key=u.value.trim().toLowerCase();
-  [n,u,p,p2].forEach(i=>bad(i,false));msg('rgMsg','');
+  const n=$('rgName'),ag=$('rgDob'),u=$('rgUser'),p=$('rgPass'),p2=$('rgPass2'),key=u.value.trim().toLowerCase();
+  [n,ag,u,p,p2].forEach(i=>bad(i,false));msg('rgMsg','');
   let err='',el=null;
-  if(!USER_RE.test(key)){err='Tên đăng nhập gồm 3–20 ký tự: chữ thường, số, dấu chấm hoặc gạch dưới, và phải bắt đầu bằng chữ hoặc số.';el=u}
+  if(!dobOk(ag.value)){err='Hãy chọn ngày tháng năm sinh hợp lệ.';el=ag}
+  else if(!USER_RE.test(key)){err='Tên đăng nhập gồm 3–20 ký tự: chữ thường, số, dấu chấm hoặc gạch dưới, và phải bắt đầu bằng chữ hoặc số.';el=u}
   else if(passProblem(p.value,key)){err=passProblem(p.value,key);el=p}
   else if(p.value!==p2.value){err='Hai mật khẩu nhập vào chưa khớp nhau.';el=p2}
   if(err){bad(el,true);msg('rgMsg',err);el.focus();return}
   setBusy(forms.register,true,'Đang tạo tài khoản…');
   try{
-    await withTimeout(register(n.value,key,p.value),30000);
+    await withTimeout(register(n.value,key,p.value,ag.value.trim()),30000);
     setBusy(forms.register,false);
-    [n,u,p,p2].forEach(i=>i.value='');$('rgPass').dispatchEvent(new Event('input'));
+    [n,ag,u,p,p2].forEach(i=>i.value='');$('rgPass').dispatchEvent(new Event('input'));
     show('login');$('lgUser').value=key;msg('lgMsg','Đăng ký thành công! Hãy đăng nhập để vào thư viện.',true);$('lgPass').focus();
   }catch(er){
     setBusy(forms.register,false);
@@ -1026,7 +1033,7 @@ ready.then(async me=>{
     if(READONLY||(await pickBackend())!=='cloud')return;
     const key=me.key,PF=cloudDb.collection('profiles'),FR=cloudDb.collection('friends'),MS=cloudDb.collection('msgs');
     const names={};names[key]=me.name;
-    PF.doc(key).set({key,name:me.name,t:Date.now()}).catch(()=>{});
+    PF.doc(key).set({key,name:me.name,t:Date.now()},{merge:true}).catch(()=>{});
     const st=document.createElement('style');
     st.textContent='#soc{position:fixed;right:0;top:calc(env(safe-area-inset-top,0px) + 76px);bottom:0;z-index:45;width:min(268px,calc(100vw - 44px));color:var(--ink);transition:transform .28s ease}#soc.col{transform:translateX(100%)}'
     +'#soc .w{height:100%;box-sizing:border-box;overflow:auto;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 12px);background:rgba(10,7,32,.9);backdrop-filter:blur(8px);border:1px solid var(--line);border-right:0;border-radius:14px 0 0 14px;box-shadow:-8px 8px 30px rgba(0,0,0,.45)}#soc.col .w{visibility:hidden;transition:visibility 0s .28s}'
@@ -1320,7 +1327,7 @@ ready.then(me=>{
       inline(c,'Tên hiển thị mới cho @'+r.key+':','Lưu',true,async nm=>{
         nm=(nm||'').trim().slice(0,30);if(!nm)throw'Hãy nhập tên hiển thị.';
         await cloudDb.collection('accounts').doc(r.key).update({name:nm});
-        await cloudDb.collection('profiles').doc(r.key).set({key:r.key,name:nm,t:Date.now()});
+        await cloudDb.collection('profiles').doc(r.key).set({key:r.key,name:nm,t:Date.now()},{merge:true});
         say('Đã đổi tên @'+r.key+' thành '+nm);load();
       },'Tên hiển thị mới');
     }
@@ -1359,7 +1366,7 @@ window.TVAuth={ready,logout,get user(){return user},pickBackend,ownerKey:OWNER_K
   async people(){
     try{
       if((await pickBackend())==='cloud')return(await cloudDb.collection('profiles').get()).docs.map(d=>d.data()).filter(Boolean);
-      return(await Users.list()).filter(r=>r&&!r.deleted&&!r.disabled).map(r=>({key:r.key,name:r.name||r.key}));
+      return(await Users.list()).filter(r=>r&&!r.deleted&&!r.disabled).map(r=>({key:r.key,name:r.name||r.key,dob:r.dob,age:r.age}));
     }catch(e){return[]}
   }};
 })();
@@ -1627,20 +1634,67 @@ function recolorGalaxy(th){
   coreGlow.material.color.copy(gl);
 }
 
+/* ============ 2 thiên hà nhỏ trong mỗi cuốn sách (tương tác được) ============ */
+const MINI_NAMES=[['Thiên hà Hổ Phách','Thiên hà Tím Mộng','Thiên hà Bình Minh','Dải Sao Băng'],['Thiên hà Ngọc Lục','Dải Biển Xanh','Thiên hà Rừng Sương','Vòng Xoáy Lữ Hành'],['Thiên hà Hồng Phấn','Vòng Xoáy Kỷ Niệm','Thiên hà Hoàng Hôn','Dải Ấm Áp']];
+const MINI_POS=[[25,11,-12],[-23,-12,16],[-14,13,-24],[12,-11,26]],MINI_TILT=[[.5,.3],[-.6,-.25],[.3,-.5],[-.4,.45]],MINI_BR=[3,2,4,2],MINI_SP=[1.05,1.5,.8,1.3],MINI_R=7;
+const focusV=new THREE.Vector3(),focusT=new THREE.Vector3(),bFocus=document.getElementById('bFocus');
+let focusIdx=-1,hoverM=-1;
+function spiralPoints(pal,R,N,branches,spin){
+  const pos=new Float32Array(N*3),col=new Float32Array(N*3),c=new THREE.Color(),a=new THREE.Color(pal[0]),b=new THREE.Color(pal[1]),d=new THREE.Color(pal[2]);
+  for(let i=0;i<N;i++){
+    const t=Math.pow(Math.random(),.75),rad=t*R,br=(i%branches)/branches*6.2832,sp=rad*spin,k=.35*rad,sg=()=>Math.random()<.5?1:-1;
+    pos[i*3]=Math.cos(br+sp)*rad+Math.pow(Math.random(),3)*sg()*k;
+    pos[i*3+1]=Math.pow(Math.random(),3)*sg()*k*.3;
+    pos[i*3+2]=Math.sin(br+sp)*rad+Math.pow(Math.random(),3)*sg()*k;
+    if(t<.4)c.copy(a).lerp(b,t/.4);else c.copy(b).lerp(d,(t-.4)/.6);
+    const l=.6+Math.random()*.6;col[i*3]=c.r*l;col[i*3+1]=c.g*l;col[i*3+2]=c.b*l;
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  return new THREE.Points(g,new THREE.PointsMaterial({size:.17,map:SOFT,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+}
+books.forEach((b,bi)=>{
+  const th=b.theme,pals=[[th.glow,th.gal[1],th.gal[2]],[th.gal[0],th.gal[2],th.gal[1]],[th.gal[2],th.gal[0],th.gal[1]],[th.gal[1],th.glow,th.gal[0]]];
+  b.minis=[0,1,2,3].map(i=>{
+    const root=new THREE.Group();root.position.set(...MINI_POS[i]);
+    const tilt=new THREE.Group();tilt.rotation.set(MINI_TILT[i][0],0,MINI_TILT[i][1]);root.add(tilt);
+    const pts=spiralPoints(pals[i],MINI_R,lowEnd?3500:8000,MINI_BR[i],MINI_SP[i]);pts.frustumCulled=false;tilt.add(pts);
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:SOFT,color:new THREE.Color(pals[i][0]),transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false}));
+    glow.scale.set(5,5,1);root.add(glow);
+    const lab=labelSprite(MINI_NAMES[bi][i]);lab.scale.set(7,1.3,1);lab.position.y=MINI_R*.9+1.5;lab.material.opacity=.6;root.add(lab);
+    b.cardGroup.add(root);
+    return{root,tilt,pts,glow,lab,name:MINI_NAMES[bi][i],hv:0,spin:0,base:.1+i*.035};
+  });
+});
+function miniAt(cx,cy){
+  if(!cur.minis)return -1;
+  setMouse(cx,cy);const p=new THREE.Vector3();let best=-1,bd=1e9;
+  cur.minis.forEach((m,i)=>{
+    m.root.getWorldPosition(p);const r=MINI_R*1.05*m.root.scale.x*galaxy.scale.x;
+    if(ray.ray.distanceSqToPoint(p)<r*r){const d=camera.position.distanceTo(p);if(d<bd){bd=d;best=i}}
+  });
+  return best;
+}
+function setAddLabel(){const b=document.getElementById('bAdd');b.textContent=(focusIdx>=0&&cur.minis)?'Thêm ảnh vào '+cur.minis[focusIdx].name:'Thêm ảnh vào sách này'}
+function focusMini(i){focusIdx=i;tgt.r=13;tgt.phi=1.2;bFocus.hidden=false;setAddLabel();if(document.getElementById('bAdd').style.display!=='none')note('Ảnh mới sẽ quay quanh '+cur.minis[i].name)}
+function unfocus(){if(focusIdx<0)return;focusIdx=-1;tgt.r=defaultR();tgt.phi=1.18;bFocus.hidden=true;setAddLabel()}
+bFocus.onclick=unfocus;
+
 /* ============ thẻ ảnh quay quanh (mỗi sách có bộ riêng) ============ */
 let cards=cur.cards;
-function addCard(canvasEl,title,sub,full,radius,fadeIn,book){
+function addCard(canvasEl,title,sub,full,radius,fadeIn,book,gal){
   const bk=book||cur;
+  const gi=(gal>=0&&bk.minis&&bk.minis[gal])?gal:-1,par=gi>=0?bk.minis[gi].tilt:bk.cardGroup,k=gi>=0?.5:1;
+  if(gi>=0)radius=MINI_R*(.65+Math.max(0,Math.min(1,(radius-5)/13))*.75);
   const tex=CT(canvasEl);
   const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:fadeIn?0:1,depthWrite:false});
-  const sp=new THREE.Sprite(mat);sp.scale.set(3.2,4,1);sp.renderOrder=2;
-  const pivotO=new THREE.Object3D();pivotO.rotation.set((Math.random()-.5)*.45,0,(Math.random()-.5)*.45);bk.cardGroup.add(pivotO);
+  const sp=new THREE.Sprite(mat);sp.scale.set(3.2*k,4*k,1);sp.renderOrder=2;
+  const pivotO=new THREE.Object3D();const tlt=gi>=0?.08:.45;pivotO.rotation.set((Math.random()-.5)*tlt,0,(Math.random()-.5)*tlt);par.add(pivotO);
   const spinner=new THREE.Object3D();spinner.rotation.y=Math.random()*6.283;pivotO.add(spinner);
   sp.position.set(radius,0,0);spinner.add(sp);
   const pts=[];for(let i=0;i<=160;i++){const a=i/160*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*radius,0,Math.sin(a)*radius))}
   const ring=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x9a8cff,transparent:true,opacity:.14,blending:THREE.AdditiveBlending,depthWrite:false}));
   pivotO.add(ring);
-  sp.userData={pivotO,spinner,ring,speed:(1.1/Math.sqrt(radius))*.3*(.85+Math.random()*.3),v:1,sc:fadeIn?.1:1,ph:Math.random()*6.28,title,sub,full:full||canvasEl.toDataURL('image/png')};
+  sp.userData={pivotO,spinner,ring,k,gal:gi,mk:.85+Math.random()*.3,speed:(1.1/Math.sqrt(radius))*.3*(.85+Math.random()*.3),v:1,sc:fadeIn?.1:1,ph:Math.random()*6.28,title,sub,full:full||canvasEl.toDataURL('image/png')};
   bk.cards.push(sp);return sp;
 }
 
@@ -1812,7 +1866,7 @@ async function fly(){
 async function enterGalaxy(){
   books.forEach(b=>{b.group.visible=false;b.cardGroup.visible=(b===cur)});
   sparkles.visible=false;halo.visible=false;portalLight.intensity=0;
-  cards=cur.cards;recolorGalaxy(cur.theme);if(VIEW)ttl.textContent=cur.theme.title+' · '+VIEW.name;
+  cards=cur.cards;recolorGalaxy(cur.theme);focusIdx=-1;focusV.set(0,0,0);bFocus.hidden=true;setAddLabel();if(VIEW)ttl.textContent=cur.theme.title+' · '+VIEW.name;
   galaxy.visible=true;galaxy.scale.setScalar(.02);
   camera.fov=60;camera.updateProjectionMatrix();
   const R=defaultR(),th0=.6+1.8;
@@ -1827,13 +1881,13 @@ async function enterGalaxy(){
   },easeOutCubic);
   mode='galaxy';
   bar.classList.add('on');
-  showHint(cards.length?(TOUCHY?'Kéo để xoay · Chụm hai ngón để phóng to · Chạm vào ảnh để xem · Chạm hai lần để về mặc định':'Kéo để xoay · Lăn chuột để phóng to · Chạm vào một ảnh để xem'):(VIEW?'Sách này chưa có ảnh nào':'Sách này còn trống — bấm "Thêm ảnh vào sách này" để đưa ảnh vào'),true);
+  showHint(cards.length?(TOUCHY?'Kéo để xoay · Chụm hai ngón để phóng to · Chạm vào ảnh hoặc thiên hà nhỏ · Chạm hai lần để về mặc định':'Kéo để xoay · Lăn chuột để phóng to · Bấm vào ảnh để xem · Bấm vào thiên hà nhỏ để bay tới'):(VIEW?'Sách này chưa có ảnh nào':'Sách này còn trống — bấm "Thêm ảnh vào sách này" để đưa ảnh vào'),true);
   setTimeout(()=>{if(mode==='galaxy')hideHint()},8000);
   tween(900,e=>{cards.forEach(c=>{c.material.opacity=e;c.userData.sc=lerp(.1,1,e)})},easeOutCubic);
 }
 async function backToShelf(){
   if(mode!=='galaxy')return;
-  mode='returning';SFX.back();bar.classList.remove('on');hideHint();closeLB();hovered=null;
+  mode='returning';SFX.back();focusIdx=-1;bFocus.hidden=true;bar.classList.remove('on');hideHint();closeLB();hovered=null;
   await flashTo(1,800);
   galaxy.visible=false;sparkles.visible=true;halo.visible=true;
   camera.fov=50;camera.updateProjectionMatrix();
@@ -1901,7 +1955,7 @@ function endPtr(e){
     const quick=performance.now()-downInfo.t<650&&moved<8;downInfo=null;
     if(quick){
       if(mode==='book'&&bookState==='shelf'){const b=bookAt(e.clientX,e.clientY);if(b)selectBook(b)}
-      else if(mode==='galaxy'){const s=cardAt(e.clientX,e.clientY);if(s)openLB(s);else{const n=performance.now();if(n-(window._tap||0)<320){tgt.r=defaultR();tgt.phi=1.18;window._tap=0}else window._tap=n}}
+      else if(mode==='galaxy'){const s=cardAt(e.clientX,e.clientY);if(s)openLB(s);else{const mi=miniAt(e.clientX,e.clientY);if(mi>=0){if(focusIdx===mi){const m=cur.minis[mi];m.spin=Math.min(9,m.spin+4)}else focusMini(mi);SFX.select()}else{const n=performance.now();if(n-(window._tap||0)<320){unfocus();tgt.r=defaultR();tgt.phi=1.18;window._tap=0}else window._tap=n}}}
     }
   }
 }
@@ -1909,7 +1963,7 @@ canvas.addEventListener('pointerup',endPtr);
 canvas.addEventListener('pointercancel',endPtr);
 canvas.addEventListener('pointerleave',()=>{mouseIn=false;hovered=null;hoverBook=null;tip.style.opacity=0});
 canvas.addEventListener('wheel',e=>{if(mode!=='galaxy')return;e.preventDefault();tgt.r=clamp(tgt.r*Math.exp(e.deltaY*.0012),6,75)},{passive:false});
-canvas.addEventListener('dblclick',()=>{if(mode==='galaxy'){tgt.r=defaultR();tgt.phi=1.18}});
+canvas.addEventListener('dblclick',()=>{if(mode==='galaxy'){unfocus();tgt.r=defaultR();tgt.phi=1.18}});
 
 /* nút */
 const bAuto=document.getElementById('bAuto');
@@ -1933,7 +1987,7 @@ async function viewBook(i,owner,name){
   try{const sn=await (DB.fb?col().where('owner','==',owner).where('book','==',i):col()).get();docs=sn.docs.filter(d=>{const x=d.data()||{};return x.owner===owner&&x.book===i&&x.data})}
   catch(e){note('Chưa mở được sách này (máy chủ không cho phép xem)');return}
   const mine=b.cards;mine.forEach(c=>{c.userData.pivotO.visible=false});b.cards=[];VIEW={b,mine,owner,name:name||owner};
-  for(const d of docs){const x=d.data();try{const c=await addPhoto(fromDataURL(x.data),x.name||'Ảnh',b,d.id,x.radius||5+Math.random()*13,false);c.userData.owner=owner}catch(e){}}
+  for(const d of docs){const x=d.data();try{const c=await addPhoto(fromDataURL(x.data),x.name||'Ảnh',b,d.id,x.radius||5+Math.random()*13,false,galOf(x));c.userData.owner=owner}catch(e){}}
   document.getElementById('bAdd').style.display='none';
   await selectBook(b);if(bookState==='shelf')endView();
 }
@@ -1986,6 +2040,10 @@ async function initCloud(){
 }
 const ready=initCloud();
 const toDataURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+/* thiên hà của ảnh được mã hóa trong phần thập phân của radius (không thêm trường mới nên luật Firestore cũ vẫn cho lưu) */
+function packR(r,g){return g>=0?Math.floor(r)+(g+1)/100:r}
+function unpackGal(r){if(typeof r!=='number')return -1;const f=(r-Math.floor(r))*100,n=Math.round(f);return(n>=1&&n<=4&&Math.abs(f-n)<1e-6)?n-1:-1}
+function galOf(d){return d.gal>=0?d.gal:unpackGal(d.radius)}
 function fromDataURL(u){const i=u.indexOf(','),m=/data:([^;]+)/.exec(u)[1],t=atob(u.slice(i+1)),a=new Uint8Array(t.length);for(let k=0;k<t.length;k++)a[k]=t.charCodeAt(k);return new Blob([a],{type:m})}
 const col=()=>DB.collection('photos');
 const Store={
@@ -2013,14 +2071,14 @@ async function shrink(file){
     return last;
   }finally{URL.revokeObjectURL(url)}
 }
-async function addPhoto(blob,name,book,id,radius,fadeIn){
+async function addPhoto(blob,name,book,id,radius,fadeIn,gal){
   const url=URL.createObjectURL(blob),img=await loadImg(url);
   const art=c=>{
     c.fillStyle='#05030f';c.fillRect(0,0,AW,AH);
     const s=Math.max(AW/img.width,AH/img.height),w=img.width*s,h=img.height*s;
     c.drawImage(img,(AW-w)/2,(AH-h)/2,w,h);
   };
-  const sp=addCard(cardCanvas(art,name,book.theme.title),name,book.theme.title,url,radius,fadeIn,book);
+  const sp=addCard(cardCanvas(art,name,book.theme.title),name,book.theme.title,url,radius,fadeIn,book,gal);
   sp.userData.id=id;sp.userData.art=art;sp.userData.book=book;
   return sp;
 }
@@ -2030,21 +2088,21 @@ function note(text){showHint(text,true);clearTimeout(noteTimer);noteTimer=setTim
 fileIn.addEventListener('change',async()=>{
   if(!AUTHED){fileIn.value='';return}
   await ready;
-  const target=cur,files=[...fileIn.files].filter(f=>f.type.startsWith('image/'));
+  const target=cur,gal=focusIdx,files=[...fileIn.files].filter(f=>f.type.startsWith('image/'));
   fileIn.value='';
-  let saved=0,failed=0;
+  let saved=0,failed=0,lastErr=null;
   for(const f of files){
     try{
       const blob=await shrink(f),name=f.name.replace(/\.[^.]+$/,'');
       const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7),radius=5+Math.random()*13;
-      const sp=await addPhoto(blob,name,target,id,radius,true);
+      const sp=await addPhoto(blob,name,target,id,radius,true,gal);
       sp.userData.owner=ME;shown[id]=sp;
       tween(1100,e=>{sp.material.opacity=e;sp.userData.sc=lerp(.1,1,e)},easeOutCubic);
-      try{await Store.put({id,book:target.idx,name,radius,blob,t:Date.now(),owner:ME});saved++}catch(e){failed++}
+      try{await Store.put({id,book:target.idx,gal,name,radius:packR(radius,gal),blob,t:Date.now(),owner:ME});saved++}catch(e){failed++;lastErr=e;console.error('Lưu ảnh lỗi',e)}
     }catch(e){failed++}
   }
   if(!files.length)return;
-  if(failed)note(saved?`Đã lưu ${saved} ảnh · ${failed} ảnh chưa lưu được`:'Ảnh đã thêm nhưng chưa lưu được (trình duyệt không cho phép)');
+  if(failed)note(saved?`Đã lưu ${saved} ảnh · ${failed} ảnh chưa lưu được`:'Ảnh đã thêm nhưng chưa lưu được ('+((lastErr&&(lastErr.code||lastErr.message))||'trình duyệt không cho phép')+')');
   else note(`Đã tự lưu ${saved} ảnh`);
 });
 
@@ -2059,7 +2117,7 @@ async function loadSaved(){
         if(r.owner&&r.owner!==ME)continue; /* ảnh của tài khoản khác */
         if(!r.owner){r.owner=ME;Local.put(r).catch(()=>{})} /* ảnh cũ chưa có chủ: tài khoản đăng nhập đầu tiên nhận */
         const bk=books[r.book];if(!bk)continue;
-        try{await addPhoto(r.blob,r.name,bk,r.id,r.radius||5+Math.random()*13,false)}catch(e){}
+        try{await addPhoto(r.blob,r.name,bk,r.id,r.radius||5+Math.random()*13,false,galOf(r))}catch(e){}
       }
     }catch(e){}
     return;
@@ -2079,7 +2137,7 @@ async function loadSaved(){
         shown[id]=1;
         try{
           const bk=books[d.book];if(!bk||!d.data){delete shown[id];continue}
-          const c=await addPhoto(fromDataURL(d.data),d.name||'Ảnh',bk,id,d.radius||5+Math.random()*13,false);
+          const c=await addPhoto(fromDataURL(d.data),d.name||'Ảnh',bk,id,d.radius||5+Math.random()*13,false,galOf(d));
           c.userData.owner=d.owner;shown[id]=c;
         }catch(e){delete shown[id]}
       }
@@ -2122,7 +2180,7 @@ lbT.addEventListener('click',startEdit);
 /* xóa một ảnh (cả trên màn hình lẫn trong bộ nhớ) */
 function removeCard(sp){
   const u=sp.userData,bk=books.find(b=>b.cards.includes(sp));
-  if(bk){bk.cards.splice(bk.cards.indexOf(sp),1);bk.cardGroup.remove(u.pivotO)}
+  if(bk){bk.cards.splice(bk.cards.indexOf(sp),1);(u.pivotO.parent||bk.cardGroup).remove(u.pivotO)}
   hovered=null;
   sp.material.map.dispose();sp.material.dispose();u.ring.geometry.dispose();
   if(String(u.full).startsWith('blob:'))URL.revokeObjectURL(u.full);
@@ -2178,22 +2236,35 @@ function loop(){
       sph.theta+=(tgt.theta-sph.theta)*k;sph.phi+=(tgt.phi-sph.phi)*k;sph.r+=(tgt.r-sph.r)*k;
     }
     const s=Math.sin(sph.phi);
-    camera.position.set(sph.r*s*Math.sin(sph.theta),sph.r*Math.cos(sph.phi),sph.r*s*Math.cos(sph.theta));
-    look.set(0,0,0);camera.lookAt(look);
+    if(focusIdx>=0&&cur.minis)cur.minis[focusIdx].root.getWorldPosition(focusT);else focusT.set(0,0,0);
+    focusV.lerp(focusT,Math.min(1,dt*3.5));
+    camera.position.set(focusV.x+sph.r*s*Math.sin(sph.theta),focusV.y+sph.r*Math.cos(sph.phi),focusV.z+sph.r*s*Math.cos(sph.theta));
+    look.copy(focusV);camera.lookAt(look);
     galaxy.rotation.y+=dt*.03;
     coreGlow.scale.setScalar(11+Math.sin(T*1.5)*.6);
 
     if(mode==='galaxy'&&ptrs.size===0&&mouseIn&&!lb.classList.contains('on'))hovered=cardAt(lastClient.x,lastClient.y);
     else if(ptrs.size>0||!mouseIn)hovered=null;
-    if(hovered){tip.textContent=hovered.userData.title;tip.style.opacity=1}else tip.style.opacity=0;
-    if(mode==='galaxy')canvas.style.cursor=hovered?'pointer':(ptrs.size?'grabbing':'grab');
+    hoverM=(mode==='galaxy'&&!hovered&&ptrs.size===0&&mouseIn&&!lb.classList.contains('on'))?miniAt(lastClient.x,lastClient.y):-1;
+    if(hovered){tip.textContent=hovered.userData.title;tip.style.opacity=1}
+    else if(hoverM>=0){tip.textContent=cur.minis[hoverM].name+(focusIdx===hoverM?' · bấm để quay nhanh':' · bấm để bay tới');tip.style.opacity=1}
+    else tip.style.opacity=0;
+    if(mode==='galaxy')canvas.style.cursor=(hovered||hoverM>=0)?'pointer':(ptrs.size?'grabbing':'grab');
+    if(cur.minis)cur.minis.forEach((m,i)=>{
+      const h=(i===hoverM||i===focusIdx)?1:0;m.hv+=(h-m.hv)*Math.min(1,dt*6);
+      m.spin+=(0-m.spin)*Math.min(1,dt*1.1);m.pts.rotation.y+=dt*(m.base+m.spin);
+      m.root.scale.setScalar(1+.12*m.hv);
+      m.glow.material.opacity=.55+.4*m.hv+Math.sin(T*1.4+i)*.06;
+      m.glow.scale.setScalar(5+Math.sin(T*1.4+i*2)*.4+m.hv*1.5);
+      m.lab.material.opacity=.6+.4*m.hv;
+    });
 
     cards.forEach(sp=>{
       const u=sp.userData,h=sp===hovered;
       u.v+=((h?0:1)-u.v)*Math.min(1,dt*5);
-      u.spinner.rotation.y+=dt*u.speed*u.v;
+      {const gm=(u.gal>=0&&cur.minis)?cur.minis[u.gal]:null;u.spinner.rotation.y+=dt*(gm?(gm.base+gm.spin)*u.mk:u.speed)*u.v}
       u.sc+=((h?1.35:1)-u.sc)*Math.min(1,dt*8);
-      sp.scale.set(3.2*u.sc,4*u.sc,1);
+      sp.scale.set(3.2*u.sc*u.k,4*u.sc*u.k,1);
       sp.position.y=Math.sin(T*.8+u.ph)*.25;
       u.ring.material.opacity=lerp(u.ring.material.opacity,h?.55:.14,Math.min(1,dt*6));
     });
@@ -2369,7 +2440,7 @@ function note(t,fn){
 }
 function fail(e,what){
   const c=e&&(e.code||e.name);let m='Chưa thể '+what+' lúc này, hãy thử lại.';
-  if(c==='permission-denied')m='Máy chủ từ chối thao tác này. Chủ trang cần thêm luật Firestore cho trang cá nhân (xem file firestore-trang-ca-nhan.rules).';
+  if(c==='permission-denied')m='Máy chủ từ chối thao tác này. Chủ trang cần thêm luật Firestore cho trang cá nhân (xem file firestore.rules).';
   else if(c==='quota_exceeded'||c==='resource-exhausted')m='Bộ nhớ đã đầy nên chưa thể '+what+'. Hãy thử ảnh nhỏ hơn.';
   else if(c==='unavailable')m='Mất kết nối mạng, hãy thử lại sau.';
   note(m);
@@ -2544,6 +2615,11 @@ async function changeAvatar(){
 }
 
 /* ---- sửa trang cá nhân ---- */
+const dobOf=k=>{const g=S.PG[k]||{};if(g.dob)return g.dob;if(g.age!=null&&g.age!=='')return'';const p=(S.PEOPLE||[]).find(x=>x.key===k);return p&&p.dob||''};
+const legacyAge=k=>{const g=S.PG[k]||{};if(g.dob)return'';if(g.age!=null&&g.age!=='')return g.age;const p=(S.PEOPLE||[]).find(x=>x.key===k);return p&&!p.dob&&p.age!=null?p.age:''};
+const dobOk=v=>{v=String(v||'').trim();const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v);if(!m)return false;const y=+m[1],mo=+m[2],da=+m[3],d=new Date(y,mo-1,da);if(d.getFullYear()!==y||d.getMonth()!==mo-1||d.getDate()!==da)return false;const n=new Date();if(d>n)return false;let a=n.getFullYear()-y;if(n.getMonth()<mo-1||(n.getMonth()===mo-1&&n.getDate()<da))a--;return a>=0&&a<=120};
+const ageFrom=v=>{const d=new Date(v+'T00:00:00'),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a};
+const fmtDob=v=>v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4);
 function editProfile(){
   const pg=S.PG[KEY]||{};let cover=pg.cover==null?0:pg.cover,coverImg='';
   modal((dl,close)=>{
@@ -2553,6 +2629,8 @@ function editProfile(){
     row.append(av,bt);dl.append(row);
     const l1=el('label','l','Giới thiệu bản thân');l1.htmlFor='pfBio';const bio=el('textarea','pfi');bio.id='pfBio';bio.maxLength=160;bio.value=pg.bio||'';bio.placeholder='Vài dòng về bạn';
     const l2=el('label','l','Nơi ở');l2.htmlFor='pfPlace';const pl=el('input','pfi');pl.id='pfPlace';pl.type='text';pl.maxLength=40;pl.value=pg.place||'';pl.placeholder='Thành phố, quốc gia';
+    const l2a=el('label','l','Ngày tháng năm sinh');l2a.htmlFor='pfDob';const ag=el('input','pfi');ag.id='pfDob';ag.type='date';ag.min='1900-01-01';ag.max=new Date().toISOString().slice(0,10);ag.value=dobOf(KEY);
+    const l2b=el('label','l','Ai xem được ngày sinh');l2b.htmlFor='pfDobVis';const dv=el('select','pfsel');dv.id='pfDobVis';[['age','Chỉ hiện số tuổi'],['full','Hiện đầy đủ ngày sinh'],['none','Chỉ mình tôi']].forEach(([v,t])=>{const o=el('option','',t);o.value=v;dv.appendChild(o)});dv.value=pg.dobVis||'age';
     const l3=el('label','l','Ảnh bìa'),sw=el('div','sws');
     const draw=()=>{
       sw.textContent='';
@@ -2565,15 +2643,17 @@ function editProfile(){
     };draw();
     const msg=el('p','pfhint','');
     const acts=el('div','dl-acts'),sv=btn('Lưu thay đổi','pfb gold',async()=>{
+      const at=ag.value.trim();
+      if(at&&!dobOk(at)){msg.textContent='Ngày tháng năm sinh chưa hợp lệ.';ag.focus();return}
       sv.disabled=true;
       try{
         if(coverImg){await D.set('media','c_'+KEY,{owner:KEY,data:coverImg})}
-        await savePage({bio:bio.value.trim().slice(0,160),place:pl.value.trim().slice(0,40),cover});
+        await savePage({bio:bio.value.trim().slice(0,160),place:pl.value.trim().slice(0,40),dob:at,dobVis:dv.value,age:'',cover});
         note('Đã lưu trang cá nhân.');close();
       }catch(e){fail(e,'lưu trang cá nhân');sv.disabled=false}
     });
     acts.append(btn('Hủy','pfb',close),sv);
-    dl.append(l1,bio,l2,pl,l3,sw,msg,acts);
+    dl.append(l1,bio,l2,pl,l2a,ag,l2b,dv,l3,sw,msg,acts);
   });
 }
 
@@ -2812,6 +2892,13 @@ function buildHead(k,posts){
   bd.append(el('h2','hname',nm(k)),el('p','hat','@'+k));
   const bio=el('p','hbio'+(pg.bio?'':' empty'),pg.bio||(own?'Bạn chưa viết phần giới thiệu. Bấm “Chỉnh sửa trang” để thêm vài dòng về mình.':'Chưa có phần giới thiệu.'));bd.appendChild(bio);
   const meta=el('div','hmeta');
+  {const dv=pg.dobVis||'age',d0=dobOf(k),la=legacyAge(k);
+    if(d0){const yr=ageFrom(d0);let t='';
+      if(own)t='Sinh ngày '+fmtDob(d0)+' ('+yr+' tuổi)'+(dv==='full'?'':dv==='none'?' · chỉ mình bạn thấy':' · người khác chỉ thấy số tuổi');
+      else if(dv==='full')t='Sinh ngày '+fmtDob(d0)+' ('+yr+' tuổi)';
+      else if(dv==='age')t=yr+' tuổi';
+      if(t)meta.appendChild(el('span','',t))}
+    else if(la!==''&&(own||dv!=='none'))meta.appendChild(el('span','',la+' tuổi'))}
   if(pg.place)meta.appendChild(el('span','','Sống tại '+pg.place));
   if(pg.since)meta.appendChild(el('span','','Tham gia tháng '+(new Date(pg.since).getMonth()+1)+'/'+new Date(pg.since).getFullYear()));
   if(meta.children.length)bd.appendChild(meta);
@@ -2866,7 +2953,7 @@ function profileView(k){
   const list=el('div'),empty=el('div','pf-empty');v.el.append(list,empty);
   v.refresh=()=>{
     const posts=visible().filter(p=>p.owner===k),pg=S.PG[k]||{};
-    const sig=JSON.stringify([pg.t,pg.bio,pg.place,pg.cover,(pg.avatar||'').length,nm(k),fstat(k),posts.length,posts.reduce((n,p)=>n+(S.LB[p.id]||[]).length,0),S.fr.size,nav.length,CLOUD&&window.TVSoc?1:0]);
+    const sig=JSON.stringify([pg.t,pg.bio,pg.place,pg.dob,pg.dobVis,dobOf(k),legacyAge(k),pg.cover,(pg.avatar||'').length,nm(k),fstat(k),posts.length,posts.reduce((n,p)=>n+(S.LB[p.id]||[]).length,0),S.fr.size,nav.length,CLOUD&&window.TVSoc?1:0]);
     if(sig!==hsig){hsig=sig;hd.textContent='';hd.appendChild(buildHead(k,posts))}
     const bs=JSON.stringify([pg.bookVis,pg.books,fstat(k)]);if(bsig!==bs){bsig=bs;bkw.textContent='';bkw.appendChild(buildBooks(k,own,bst))}
     syncList(list,posts,cards);
@@ -3014,12 +3101,12 @@ document.getElementById('acctMenu').insertBefore(pfBtn,document.getElementById('
 pfBtn.onclick=()=>openProfile(KEY);
 
 /* ---- Link sản phẩm: mọi người xem được, chỉ tài khoản quản trị được cập nhật (siteLinks/product) ---- */
-const LK={url:'',t:0};let lkDraw=null;
+const LK={url:'',name:'',t:0};let lkDraw=null;
 const lkUrl=u=>{u=String(u||'').trim();if(!u)return'';if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u='https://'+u;try{const x=new URL(u);return/^https?:$/.test(x.protocol)?x.href:''}catch(e){return''}};
-async function saveLink(raw){
-  raw=String(raw||'');const url=lkUrl(raw);
+async function saveLink(raw,nameRaw){
+  raw=String(raw||'');const url=lkUrl(raw);const name=url?String(nameRaw||'').trim().slice(0,60):'';
   if(raw.trim()&&!url){note('Link chưa hợp lệ. Hãy nhập địa chỉ website, ví dụ https://example.com');return false}
-  const old={...LK},d={url,t:Date.now(),by:KEY};Object.assign(LK,d);if(lkDraw)lkDraw();
+  const old={...LK},d={url,name,t:Date.now(),by:KEY};Object.assign(LK,d);if(lkDraw)lkDraw();
   try{await D.set('siteLinks','product',d);note(url?'Đã cập nhật link sản phẩm.':'Đã xóa link sản phẩm.');return true}
   catch(e){Object.assign(LK,old);if(lkDraw)lkDraw();fail(e,'cập nhật link');return false}
 }
@@ -3030,12 +3117,15 @@ function showLink(){
     const box=el('div','lkbox');dl.appendChild(box);
     lkDraw=()=>{
       box.textContent='';
-      if(LK.url){const a=el('a','',LK.url);a.href=LK.url;a.target='_blank';a.rel='noopener noreferrer nofollow';box.append(a,el('small','','Cập nhật '+ago(LK.t)))}
+      if(LK.url){const a=el('a','',LK.name||LK.url);a.href=LK.url;a.target='_blank';a.rel='noopener noreferrer nofollow';box.append(a,el('small','',(LK.name?LK.url+' · ':'')+'Cập nhật '+ago(LK.t)))}
       else box.appendChild(el('span','lke',canEdit?'Bạn chưa đặt link nào.':'Quản trị viên chưa cập nhật link sản phẩm.'));
     };
     lkDraw();
-    let inp=null;
+    let inp=null,nin=null;
     if(canEdit){
+      const ln=el('label','l','Tên link');ln.htmlFor='pfLinkName';
+      nin=el('input','pfi');nin.id='pfLinkName';nin.type='text';nin.maxLength=60;nin.value=LK.name;nin.placeholder='Ví dụ: Cửa hàng của mình';
+      dl.append(ln,nin);
       const l=el('label','l','Cập nhật link');l.htmlFor='pfLink';
       inp=el('input','pfi');inp.id='pfLink';inp.type='text';inp.setAttribute('inputmode','url');inp.maxLength=500;inp.value=LK.url;inp.placeholder='https://...';
       dl.append(l,inp,el('p','pfhint','Mọi người dùng sẽ thấy link này ngay khi bạn lưu.'));
@@ -3043,8 +3133,8 @@ function showLink(){
     const acts=el('div','dl-acts');
     if(canEdit){
       const del=el('button','pfb ghost','Xóa link');del.type='button';
-      twoStep(del,'Bấm lần nữa để xóa',async()=>{if(await saveLink(''))inp.value=''});
-      const sv=btn('Lưu link','pfb gold',async()=>{sv.disabled=true;const ok=await saveLink(inp.value);sv.disabled=false;if(ok)inp.value=LK.url});
+      twoStep(del,'Bấm lần nữa để xóa',async()=>{if(await saveLink('',''))inp.value=nin.value=''});
+      const sv=btn('Lưu link','pfb gold',async()=>{sv.disabled=true;const ok=await saveLink(inp.value,nin.value);sv.disabled=false;if(ok){inp.value=LK.url;nin.value=LK.name}});
       acts.append(del,sv);
     }
     acts.appendChild(btn('Đóng','pfb',close));dl.append(acts);
@@ -3052,7 +3142,7 @@ function showLink(){
 }
 const lkBtn=el('button');lkBtn.type='button';lkBtn.id='lkBtn';lkBtn.append(ico('link',16),document.createTextNode('Link sản phẩm'));
 lkBtn.onclick=showLink;document.getElementById('acctMenu').insertBefore(lkBtn,pfBtn.nextSibling);
-watch('siteLinks',l=>{const d=l.find(x=>x.id==='product');LK.url=d?lkUrl(d.url):'';LK.t=d&&d.t||0;if(lkDraw)lkDraw()});
+watch('siteLinks',l=>{const d=l.find(x=>x.id==='product');LK.url=d?lkUrl(d.url):'';LK.name=d&&d.name?String(d.name).slice(0,60):'';LK.t=d&&d.t||0;if(lkDraw)lkDraw()});
 /* bấm vào tên trong danh sách bạn bè để xem trang cá nhân */
 document.addEventListener('click',e=>{
   const n=e.target.closest&&e.target.closest('#soc .it .n');if(!n||e.target.closest('button'))return;
