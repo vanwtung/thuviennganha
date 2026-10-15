@@ -271,6 +271,15 @@ button.pav{cursor:pointer}
 #pfModal .lkbox a{color:var(--gold);text-decoration:underline}
 #pfModal .lkbox small{display:block;margin-top:6px;font-size:11.5px;color:var(--muted);word-break:normal}
 #pfModal .lkbox .lke{color:var(--muted);word-break:normal}
+#pfModal .lklist{display:flex;flex-direction:column;gap:8px;margin:12px 0 0;max-height:min(42vh,340px);overflow:auto;padding-right:2px}
+#pfModal .lklist .lkbox{margin:0}
+#pfModal .lkitem{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#pfModal .lkitem.editing{border-color:var(--gold)}
+#pfModal .lkmain{min-width:0;flex:1 1 170px}
+#pfModal .lkact{display:flex;gap:6px;flex:none}
+#pfModal .lkact .pfb{padding:6px 10px;font-size:12px}
+#pfModal .lkform{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+#pfModal .lkft{margin:0 0 4px;font-size:13px;font-weight:500;color:var(--gold)}
 .bkv{width:100%;font-size:12px;padding:7px 6px;color:var(--ink);background:#120e33;border:1px solid var(--line);border-radius:8px}
 .bkopt .chip{display:inline-flex;align-items:center;gap:7px}
 .bkrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 18px 0}
@@ -3100,49 +3109,88 @@ pfBtn.append(mkAv(KEY,24),document.createTextNode('Trang cá nhân'),pfBd);
 document.getElementById('acctMenu').insertBefore(pfBtn,document.getElementById('acctMenu').firstChild);
 pfBtn.onclick=()=>openProfile(KEY);
 
-/* ---- Link sản phẩm: mọi người xem được, chỉ tài khoản quản trị được cập nhật (siteLinks/product) ---- */
-const LK={url:'',name:'',t:0};let lkDraw=null;
+/* ---- Link sản phẩm: danh sách không giới hạn; mọi người xem được, chỉ quản trị thêm/sửa/xóa (siteLinks/{mã}) ---- */
+let LKS=[];let lkDraw=null;
 const lkUrl=u=>{u=String(u||'').trim();if(!u)return'';if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u='https://'+u;try{const x=new URL(u);return/^https?:$/.test(x.protocol)?x.href:''}catch(e){return''}};
-async function saveLink(raw,nameRaw){
-  raw=String(raw||'');const url=lkUrl(raw);const name=url?String(nameRaw||'').trim().slice(0,60):'';
-  if(raw.trim()&&!url){note('Link chưa hợp lệ. Hãy nhập địa chỉ website, ví dụ https://example.com');return false}
-  const old={...LK},d={url,name,t:Date.now(),by:KEY};Object.assign(LK,d);if(lkDraw)lkDraw();
-  try{await D.set('siteLinks','product',d);note(url?'Đã cập nhật link sản phẩm.':'Đã xóa link sản phẩm.');return true}
-  catch(e){Object.assign(LK,old);if(lkDraw)lkDraw();fail(e,'cập nhật link');return false}
+const lkName=x=>x.name||x.url.replace(/^https?:\/\//,'').replace(/\/$/,'');
+const lkSort=l=>l.slice().sort((a,b)=>((a.c||a.t||0)-(b.c||b.t||0))||(a.id<b.id?-1:1));
+async function saveLink(id,raw,nameRaw){
+  const url=lkUrl(raw),name=String(nameRaw||'').trim().slice(0,60);
+  if(!url){note('Link chưa hợp lệ. Hãy nhập địa chỉ website, ví dụ https://example.com');return false}
+  if(LKS.some(x=>x.url===url&&x.id!==id)){note('Link này đã có trong danh sách.');return false}
+  const cur=id?LKS.find(x=>x.id===id):null,nid=id||uid(),now=Date.now();
+  const d={url,name,t:now,c:cur?(cur.c||cur.t||now):now,by:KEY},old=LKS;
+  LKS=lkSort([...LKS.filter(x=>x.id!==nid),{...d,id:nid}]);if(lkDraw)lkDraw();
+  try{await D.set('siteLinks',nid,d);note(id?'Đã cập nhật link.':'Đã thêm link.');return true}
+  catch(e){LKS=old;if(lkDraw)lkDraw();fail(e,id?'cập nhật link':'thêm link');return false}
+}
+async function delLink(id){
+  const old=LKS;LKS=LKS.filter(x=>x.id!==id);if(lkDraw)lkDraw();
+  try{await D.del('siteLinks',id);note('Đã xóa link.');return true}
+  catch(e){LKS=old;if(lkDraw)lkDraw();fail(e,'xóa link');return false}
 }
 function showLink(){
   const canEdit=ADMIN&&!RO;
   modal((dl,close)=>{
+    let editId=null,q='',inp=null,nin=null,sv=null,cancel=null,ft=null;
+    const sync=()=>{if(!canEdit)return;ft.textContent=editId?'Sửa link':'Thêm link mới';sv.textContent=editId?'Lưu thay đổi':'Thêm link';cancel.hidden=!editId};
+    const clearForm=()=>{editId=null;nin.value='';inp.value='';sync()};
     dl.append(el('h3','','Link sản phẩm'));
-    const box=el('div','lkbox');dl.appendChild(box);
+    const cnt=el('p','pfhint',''),search=el('input','pfi');
+    search.type='text';search.placeholder='Tìm trong danh sách link…';search.setAttribute('aria-label','Tìm link');search.hidden=true;search.style.marginTop='10px';
+    const list=el('div','lklist');list.setAttribute('aria-live','polite');
+    search.oninput=()=>{q=search.value;lkDraw()};
+    dl.append(cnt,search,list);
     lkDraw=()=>{
-      box.textContent='';
-      if(LK.url){const a=el('a','',LK.name||LK.url);a.href=LK.url;a.target='_blank';a.rel='noopener noreferrer nofollow';box.append(a,el('small','',(LK.name?LK.url+' · ':'')+'Cập nhật '+ago(LK.t)))}
-      else box.appendChild(el('span','lke',canEdit?'Bạn chưa đặt link nào.':'Quản trị viên chưa cập nhật link sản phẩm.'));
+      const n=LKS.length;
+      if(editId&&!LKS.some(x=>x.id===editId))clearForm();
+      cnt.textContent=n?(n+' link'):'';cnt.hidden=!n;search.hidden=n<6;
+      const t=q.trim().toLowerCase(),rows=t?LKS.filter(x=>(x.name||'').toLowerCase().includes(t)||x.url.toLowerCase().includes(t)):LKS;
+      list.textContent='';
+      if(!n){list.appendChild(el('div','lkbox lke',canEdit?'Bạn chưa thêm link nào. Hãy thêm link đầu tiên ở bên dưới.':'Quản trị viên chưa thêm link sản phẩm.'));return}
+      if(!rows.length)list.appendChild(el('div','lkbox lke','Không có link nào khớp “'+q.trim()+'”.'));
+      rows.forEach(x=>{
+        const it=el('div','lkbox lkitem'+(x.id===editId?' editing':'')),body=el('div','lkmain');
+        const a=el('a','',lkName(x));a.href=x.url;a.target='_blank';a.rel='noopener noreferrer nofollow';
+        body.append(a,el('small','',(x.name?x.url+' · ':'')+'Cập nhật '+ago(x.t)));it.appendChild(body);
+        if(canEdit){
+          const act=el('div','lkact');
+          const ed=el('button','pfb ghost','Sửa');ed.type='button';ed.setAttribute('aria-label','Sửa link '+lkName(x));
+          ed.onclick=()=>{editId=x.id;nin.value=x.name||'';inp.value=x.url;sync();lkDraw();inp.focus()};
+          const del=el('button','pfb ghost','Xóa');del.type='button';del.setAttribute('aria-label','Xóa link '+lkName(x));
+          twoStep(del,'Bấm lần nữa',async()=>{await delLink(x.id)});
+          act.append(ed,del);it.appendChild(act);
+        }
+        list.appendChild(it);
+      });
     };
+    if(canEdit){
+      const form=el('div','lkform');
+      ft=el('p','lkft','Thêm link mới');
+      const ln=el('label','l','Tên link (tuỳ chọn)');ln.htmlFor='pfLinkName';
+      nin=el('input','pfi');nin.id='pfLinkName';nin.type='text';nin.maxLength=60;nin.placeholder='Ví dụ: Cửa hàng của mình';
+      const lu=el('label','l','Địa chỉ link');lu.htmlFor='pfLink';
+      inp=el('input','pfi');inp.id='pfLink';inp.type='text';inp.setAttribute('inputmode','url');inp.maxLength=500;inp.placeholder='https://...';
+      const hint=el('p','pfhint','Mọi người dùng sẽ thấy link ngay khi bạn lưu. Bạn có thể thêm bao nhiêu link tùy ý.');
+      sv=btn('Thêm link','pfb gold',async()=>{
+        sv.disabled=true;
+        const ok=await saveLink(editId,inp.value,nin.value);
+        sv.disabled=false;
+        if(ok){clearForm();lkDraw();nin.focus()}
+      });
+      cancel=btn('Hủy sửa','pfb ghost',()=>{clearForm();lkDraw()});cancel.hidden=true;
+      const onEnter=e=>{if(e.key==='Enter'&&!sv.disabled){e.preventDefault();sv.click()}};
+      nin.addEventListener('keydown',onEnter);inp.addEventListener('keydown',onEnter);
+      const fa=el('div','dl-acts');fa.append(cancel,sv);
+      form.append(ft,ln,nin,lu,inp,hint,fa);dl.appendChild(form);
+    }
     lkDraw();
-    let inp=null,nin=null;
-    if(canEdit){
-      const ln=el('label','l','Tên link');ln.htmlFor='pfLinkName';
-      nin=el('input','pfi');nin.id='pfLinkName';nin.type='text';nin.maxLength=60;nin.value=LK.name;nin.placeholder='Ví dụ: Cửa hàng của mình';
-      dl.append(ln,nin);
-      const l=el('label','l','Cập nhật link');l.htmlFor='pfLink';
-      inp=el('input','pfi');inp.id='pfLink';inp.type='text';inp.setAttribute('inputmode','url');inp.maxLength=500;inp.value=LK.url;inp.placeholder='https://...';
-      dl.append(l,inp,el('p','pfhint','Mọi người dùng sẽ thấy link này ngay khi bạn lưu.'));
-    }
-    const acts=el('div','dl-acts');
-    if(canEdit){
-      const del=el('button','pfb ghost','Xóa link');del.type='button';
-      twoStep(del,'Bấm lần nữa để xóa',async()=>{if(await saveLink('',''))inp.value=nin.value=''});
-      const sv=btn('Lưu link','pfb gold',async()=>{sv.disabled=true;const ok=await saveLink(inp.value,nin.value);sv.disabled=false;if(ok){inp.value=LK.url;nin.value=LK.name}});
-      acts.append(del,sv);
-    }
-    acts.appendChild(btn('Đóng','pfb',close));dl.append(acts);
+    const acts=el('div','dl-acts');acts.appendChild(btn('Đóng','pfb',close));dl.append(acts);
   },{onClose:()=>{lkDraw=null}});
 }
 const lkBtn=el('button');lkBtn.type='button';lkBtn.id='lkBtn';lkBtn.append(ico('link',16),document.createTextNode('Link sản phẩm'));
 lkBtn.onclick=showLink;document.getElementById('acctMenu').insertBefore(lkBtn,pfBtn.nextSibling);
-watch('siteLinks',l=>{const d=l.find(x=>x.id==='product');LK.url=d?lkUrl(d.url):'';LK.name=d&&d.name?String(d.name).slice(0,60):'';LK.t=d&&d.t||0;if(lkDraw)lkDraw()});
+watch('siteLinks',l=>{LKS=lkSort(l.map(d=>({id:d.id,url:lkUrl(d.url),name:d.name?String(d.name).slice(0,60):'',t:d.t||0,c:d.c||0})).filter(x=>x.url));if(lkDraw)lkDraw()});
 /* bấm vào tên trong danh sách bạn bè để xem trang cá nhân */
 document.addEventListener('click',e=>{
   const n=e.target.closest&&e.target.closest('#soc .it .n');if(!n||e.target.closest('button'))return;
